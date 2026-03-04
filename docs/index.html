@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Stash App - The local-first household inventory management application built with Kotlin Multiplatform.">
+    <title>Stash App | Local First Household Inventory</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="background-glows"></div>
+
+    <header>
+        <div class="logo-container">
+            <img src="logo.svg" alt="Stash App Logo" class="logo">
+            <h1 class="brand-name">Stash</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#docs">Documentation</a></li>
+                <li><a href="https://github.com/MilanPol/StashApp" target="_blank">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="tagline">Local-first Inventory</div>
+            <h2 class="hero-title">Manage your household stock seamlessly.</h2>
+            <p class="hero-subtitle">
+                Stash is a lightning-fast, offline-capable inventory app designed to track your groceries,
+                recipes, and shared household items. Never buy duplicates again.
+            </p>
+            <a href="https://github.com/MilanPol/StashApp" class="cta-button" target="_blank">
+                View on GitHub
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                </svg>
+            </a>
+        </section>
+
+        <section id="features" class="features">
+            <div class="feature-card">
+                <div class="feature-icon">⚡️</div>
+                <h3 class="feature-title">Local First</h3>
+                <p class="feature-desc">Responsive instantly. Keeps your inventory data securely on your device, avoiding loading spinners completely.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤝</div>
+                <h3 class="feature-title">Sync & Share</h3>
+                <p class="feature-desc">Dropbox-style sync. Easily share your storage locations with household members via our resilient event-sourcing backend.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📋</div>
+                <h3 class="feature-title">Smart Shopping</h3>
+                <p class="feature-desc">Create shopping lists that instantly transition into your inventory items with practically zero manual data entry.</p>
+            </div>
+        </section>
+
+        <section id="docs" class="docs-section">
+            <h2 class="docs-title">Project Documentation</h2>
+            <div class="doc-links">
+                <a href="bounded_contexts.html" class="doc-link">Bounded Contexts &rarr;</a>
+                <a href="domain_model.html" class="doc-link">Domain Model &rarr;</a>
+                <a href="c4_model.html" class="doc-link">C4 Architecture &rarr;</a>
+                <a href="glossary.html" class="doc-link">Ubiquitous Language &rarr;</a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Stash App - Built with Kotlin Multiplatform.</p>
+    </footer>
+</body>
+</html>
