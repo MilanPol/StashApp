@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700;900&display=swap');
 
 :root {
-  --bg-dark: #1a120f;
-  /* Deep warm cocoa */
-  --bg-gradient: linear-gradient(135deg, #241814 0%, #140d0b 100%);
-  --glass-bg: rgba(255, 246, 240, 0.03);
-  --glass-border: rgba(255, 246, 240, 0.08);
-  --text-primary: #fff6f0;
-  /* Warm off-white */
-  --text-secondary: #d1aca0;
-  /* Muted terracotta/tan */
+  --bg-dark: #dceff8;
+  /* Light blue from logo */
+  --bg-gradient: linear-gradient(135deg, #e7f4fb 0%, #d1e8f5 100%);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.9);
+  --text-primary: #1e293b;
+  /* Dark slate */
+  --text-secondary: #475569;
+  /* Medium slate */
   --accent-color: #e07a5f;
   /* Cheek terracotta */
   --accent-gradient: linear-gradient(135deg, #e07a5f 0%, #d4a373 100%);
@@ -32,8 +32,8 @@ body {
   position: relative;
   overflow-x: hidden;
   background-image:
-    radial-gradient(circle at 15% 50%, rgba(224, 122, 95, 0.07), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(212, 163, 115, 0.08), transparent 25%);
+    radial-gradient(circle at 15% 50%, rgba(255, 255, 255, 0.4), transparent 35%),
+    radial-gradient(circle at 85% 30%, rgba(209, 232, 245, 0.6), transparent 35%);
 }
 
 #background-glows {
