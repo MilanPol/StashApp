@@ -10,22 +10,33 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Teal80,
+    primary = LogoTeal,
+    onPrimary = LogoTealOnDark,
+    primaryContainer = LogoTealDark,
+    onPrimaryContainer = Color.White,
     secondary = Green80,
+    secondaryContainer = LogoTealDark,
+    onSecondaryContainer = Color.White,
     tertiary = Amber80,
     background = SurfaceDark,
     surface = SurfaceDark,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Teal40,
+    primary = LogoTeal,
+    onPrimary = LogoTealOnDark,
+    primaryContainer = LogoTealLight,
+    onPrimaryContainer = LogoTealOnDark,
     secondary = Green40,
+    secondaryContainer = LogoTealLight,
+    onSecondaryContainer = LogoTealOnDark,
     tertiary = Amber40,
     background = SurfaceLight,
     surface = SurfaceLight,
@@ -34,7 +45,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun StashAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
