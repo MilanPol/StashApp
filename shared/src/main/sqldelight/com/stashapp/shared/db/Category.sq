@@ -1,17 +1,18 @@
 CREATE TABLE category (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
-    icon TEXT NOT NULL DEFAULT ''
+    icon TEXT NOT NULL DEFAULT '',
+    default_lead_days INTEGER -- Nullable, overrides global default if set
 );
 
 selectAll:
 SELECT * FROM category ORDER BY name;
 
 insert:
-INSERT OR REPLACE INTO category(id, name, icon) VALUES (?, ?, ?);
+INSERT OR REPLACE INTO category(id, name, icon, default_lead_days) VALUES (?, ?, ?, ?);
 
 update:
-UPDATE category SET name = ?, icon = ? WHERE id = ?;
+UPDATE category SET name = ?, icon = ?, default_lead_days = ? WHERE id = ?;
 
 deleteById:
 DELETE FROM category WHERE id = ?;

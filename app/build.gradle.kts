@@ -63,4 +63,10 @@ dependencies {
     
     // Database Driver
     implementation("app.cash.sqldelight:android-driver:2.0.2")
+    
+    // DataStore (Settings)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    
+    // WorkManager (Background Notifications)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

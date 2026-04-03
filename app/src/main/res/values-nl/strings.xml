@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">StashApp</string>
+    <string name="app_name">Stash</string>
 
     <!-- Dashboard -->
     <string name="nav_more_options">Meer opties</string>
@@ -41,6 +41,7 @@
     <string name="dialog_new_category_title">Nieuwe categorie</string>
     <string name="hint_category_name">Categorienaam (bijv. Vlees)</string>
     <string name="hint_icon_emoji">Icoon (Emoji)</string>
+    <string name="label_default_lead_days">Standaard herinnering (dagen)</string>
     <string name="default_category_name">Nieuwe categorie</string>
     <string name="action_save">Opslaan</string>
     <string name="action_edit">Bewerken</string>
@@ -69,6 +70,10 @@
     <string name="label_merge_with_existing">Samenvoegen met bestaande voorraad?</string>
     <string name="action_add_to_existing">Toevoegen aan bestaand</string>
     <string name="action_ok">OK</string>
+    <string name="label_notifications">Meldingen</string>
+    <string name="label_alert_me">Herinner mij</string>
+    <string name="label_days_before">dagen van tevoren</string>
+    <string name="label_custom_alert_date">Aangepaste herinneringsdatum</string>
 
     <!-- Group List Screen -->
     <string name="label_unknown">Onbekend</string>
@@ -86,4 +91,16 @@
     <string name="label_opened_on">Geopend op</string>
     <string name="label_location">Locatie</string>
     <string name="label_category">Categorie</string>
+
+    <!-- Settings Screen -->
+    <string name="screen_title_settings">Instellingen</string>
+    <string name="settings_notification_description">Beheer je meldingsvoorkeuren.</string>
+    <string name="label_global_lead_days">Standaard herinneringstermijn (wereldwijd)</string>
+
+    <!-- Notifications -->
+    <string name="label_expiring_soon">Binnenkort verlopen</string>
+    <string name="notification_summary_single">1 item verloopt binnenkort: %1$s</string>
+    <string name="notification_summary_multiple">%1$d items verlopen binnenkort: %2$s</string>
+    <string name="notification_channel_name">Vervalalarmen</string>
+    <string name="notification_channel_description">Meldingen voor items die bijna verlopen.</string>
 </resources>

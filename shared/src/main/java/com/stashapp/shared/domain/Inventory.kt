@@ -51,7 +51,8 @@ data class StorageLocation(
 data class Category(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val icon: String = ""
+    val icon: String = "",
+    val defaultLeadDays: Int? = null
 )
 
 data class InventoryEntry(
@@ -63,6 +64,7 @@ data class InventoryEntry(
     val storageLocationId: String? = null,
     val categoryId: String? = null,
     val openedAt: Instant? = null,
+    val alertAt: Instant? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()
 ) {

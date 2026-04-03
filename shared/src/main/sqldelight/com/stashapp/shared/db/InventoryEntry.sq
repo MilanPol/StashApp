@@ -10,7 +10,8 @@ CREATE TABLE inventory_entry (
     category_id TEXT,
     opened_at INTEGER,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
+    updated_at INTEGER NOT NULL,
+    alert_at INTEGER -- Epoch milliseconds (Added last for migration compatibility)
 );
 
 selectAll:
@@ -21,8 +22,8 @@ SELECT * FROM inventory_entry WHERE id = ?;
 
 insert:
 INSERT OR REPLACE INTO inventory_entry(
-    id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at, alert_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteById:
 DELETE FROM inventory_entry WHERE id = ?;

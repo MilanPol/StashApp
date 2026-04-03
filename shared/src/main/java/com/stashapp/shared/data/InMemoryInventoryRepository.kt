@@ -17,9 +17,9 @@ class InMemoryInventoryRepository : InventoryRepository {
     ))
 
     private val _categories = MutableStateFlow<List<Category>>(listOf(
-        Category(name = "Dairy", icon = "🥛"),
-        Category(name = "Produce", icon = "🍎"),
-        Category(name = "Pantry Staples", icon = "🍚")
+        Category(name = "Dairy", icon = "🥛", defaultLeadDays = 2),
+        Category(name = "Produce", icon = "🍎", defaultLeadDays = 1),
+        Category(name = "Pantry Staples", icon = "🍚", defaultLeadDays = 7)
     ))
 
     private val _entries = MutableStateFlow<List<InventoryEntry>>(emptyList())

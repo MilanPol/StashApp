@@ -34,6 +34,7 @@ fun AddItemScreen(
     initialEntry: InventoryEntry? = null,
     preSelectedLocationId: String? = null,
     preSelectedCategoryId: String? = null,
+    globalLeadDays: Int = 2,
     onDismiss: () -> Unit,
     onSave: (InventoryEntry, Boolean) -> Unit
 ) {
@@ -59,11 +60,17 @@ fun AddItemScreen(
     var nameDropdownExpanded by remember { mutableStateOf(false) }
 
     var showDatePicker by remember { mutableStateOf(false) }
+    var showAlertDialogPicker by remember { mutableStateOf(false) }
+
     val initialDateMillis = initialEntry?.expirationDate?.date
         ?.atStartOfDay(java.time.ZoneOffset.UTC)
         ?.toInstant()
         ?.toEpochMilli()
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
+    val alertDatePickerState = rememberDatePickerState(initialSelectedDateMillis = initialEntry?.alertAt?.toEpochMilli())
+
+    var wantsNotification by remember { mutableStateOf(initialEntry?.alertAt != null || initialEntry?.expirationDate != null) }
+    var customAlertDateSet by remember { mutableStateOf(initialEntry?.alertAt != null) }
 
     val filteredSuggestions = existingEntries.filter { 
         it.name.contains(name, ignoreCase = true) && name.isNotBlank() 
@@ -283,6 +290,56 @@ fun AddItemScreen(
                         )
                     }
                 }
+
+                // Notification Section
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.label_notifications), style = MaterialTheme.typography.titleSmall)
+                        val subText = if (wantsNotification) {
+                            if (customAlertDateSet) stringResource(R.string.label_custom_alert_date)
+                            else {
+                                val days = selectedCategory?.defaultLeadDays ?: globalLeadDays
+                                "${stringResource(R.string.label_alert_me)} $days ${stringResource(R.string.label_days_before)}"
+                            }
+                        } else stringResource(R.string.label_none)
+                        Text(subText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = wantsNotification,
+                        onCheckedChange = { wantsNotification = it }
+                    )
+                }
+
+                if (wantsNotification) {
+                    val alertDateMillis = alertDatePickerState.selectedDateMillis
+                    val calculatedAlertDate = if (!customAlertDateSet) {
+                         datePickerState.selectedDateMillis?.let { expMs ->
+                             val leadDays = selectedCategory?.defaultLeadDays ?: globalLeadDays
+                             Instant.ofEpochMilli(expMs).minus(java.time.Duration.ofDays(leadDays.toLong())).toEpochMilli()
+                         }
+                    } else alertDateMillis
+
+                    val alertText = if (calculatedAlertDate != null) {
+                        val date = Instant.ofEpochMilli(calculatedAlertDate).atZone(ZoneId.systemDefault()).toLocalDate()
+                        val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                        date.format(formatter)
+                    } else stringResource(R.string.label_set_expiration_date)
+
+                    OutlinedButton(
+                        onClick = { 
+                            showAlertDialogPicker = true 
+                            customAlertDateSet = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("${stringResource(R.string.label_alert_me)}: $alertText")
+                    }
+                }
             }
         },
         confirmButton = {
@@ -295,9 +352,22 @@ fun AddItemScreen(
                             ExpirationDate(localDate)
                         }
 
+                        val calculatedAlertAt = if (wantsNotification) {
+                            val alertMs = if (customAlertDateSet) {
+                                alertDatePickerState.selectedDateMillis
+                            } else {
+                                datePickerState.selectedDateMillis?.let { expMs ->
+                                    val leadDays = selectedCategory?.defaultLeadDays ?: globalLeadDays
+                                    Instant.ofEpochMilli(expMs).minus(java.time.Duration.ofDays(leadDays.toLong())).toEpochMilli()
+                                }
+                            }
+                            alertMs?.let { Instant.ofEpochMilli(it) }
+                        } else null
+
                         if (isMergeMode && existingMatch != null && initialEntry == null) {
                             val mergedEntry = existingMatch.copy(
                                 quantity = Quantity(existingMatch.quantity.amount + amount, selectedUnit),
+                                alertAt = calculatedAlertAt,
                                 updatedAt = Instant.now()
                             )
                             onSave(mergedEntry, true)
@@ -308,6 +378,7 @@ fun AddItemScreen(
                                 expirationDate = expDate,
                                 storageLocationId = selectedLocation?.id,
                                 categoryId = selectedCategory?.id,
+                                alertAt = calculatedAlertAt,
                                 updatedAt = Instant.now()
                             )
                             onSave(entryToSave, initialEntry != null)
@@ -339,6 +410,22 @@ fun AddItemScreen(
             }
         ) {
             DatePicker(state = datePickerState)
+        }
+    }
+    if (showAlertDialogPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showAlertDialogPicker = false },
+            confirmButton = {
+                TextButton(onClick = { showAlertDialogPicker = false }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showAlertDialogPicker = false 
+                    customAlertDateSet = false
+                }) { Text(stringResource(R.string.action_cancel)) }
+            }
+        ) {
+            DatePicker(state = alertDatePickerState)
         }
     }
 }

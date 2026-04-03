@@ -28,6 +28,7 @@ import java.time.format.FormatStyle
 fun ItemDetailScreen(
     repository: InventoryRepository,
     itemId: String?,
+    globalLeadDays: Int = 2,
     onNavigateBack: () -> Unit,
     onNavigateToGroup: (type: String, id: String) -> Unit = { _, _ -> }
 ) {
@@ -147,6 +148,7 @@ fun ItemDetailScreen(
             categories = categories,
             existingEntries = allEntries,
             initialEntry = entry,
+            globalLeadDays = globalLeadDays,
             onDismiss = { showEditDialog = false },
             onSave = { modifiedEntry, _ ->
                 scope.launch { repository.updateEntry(modifiedEntry) }

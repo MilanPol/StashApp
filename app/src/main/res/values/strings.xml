@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">StashApp</string>
+    <string name="app_name">Stash</string>
 
     <!-- Dashboard -->
     <string name="nav_more_options">More Options</string>
@@ -41,6 +41,7 @@
     <string name="dialog_new_category_title">New Category</string>
     <string name="hint_category_name">Category Name (e.g. Meat)</string>
     <string name="hint_icon_emoji">Icon (Emoji)</string>
+    <string name="label_default_lead_days">Default Lead Days (Alert)</string>
     <string name="default_category_name">New Category</string>
     <string name="action_save">Save</string>
     <string name="action_edit">Edit</string>
@@ -69,6 +70,10 @@
     <string name="label_merge_with_existing">Merge with existing stock?</string>
     <string name="action_add_to_existing">Add to Existing</string>
     <string name="action_ok">OK</string>
+    <string name="label_notifications">Notifications</string>
+    <string name="label_alert_me">Alert me</string>
+    <string name="label_days_before">days before</string>
+    <string name="label_custom_alert_date">Custom Alert Date</string>
 
     <!-- Group List Screen -->
     <string name="label_unknown">Unknown</string>
@@ -86,4 +91,16 @@
     <string name="label_opened_on">Opened On</string>
     <string name="label_location">Location</string>
     <string name="label_category">Category</string>
+    
+    <!-- Settings Screen -->
+    <string name="screen_title_settings">Settings</string>
+    <string name="settings_notification_description">Manage your notification preferences.</string>
+    <string name="label_global_lead_days">Global Notification Lead Days</string>
+    
+    <!-- Notifications -->
+    <string name="label_expiring_soon">Expiring Soon</string>
+    <string name="notification_summary_single">1 item is expiring soon: %1$s</string>
+    <string name="notification_summary_multiple">%1$d items are expiring soon: %2$s</string>
+    <string name="notification_channel_name">Expiration Alerts</string>
+    <string name="notification_channel_description">Notifications for items that are about to expire.</string>
 </resources>

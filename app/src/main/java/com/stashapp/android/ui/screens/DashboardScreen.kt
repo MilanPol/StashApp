@@ -2,6 +2,7 @@ package com.stashapp.android.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -22,11 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.translated
+import com.stashapp.android.ui.components.InventoryItemCard
 import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
 import com.stashapp.shared.domain.StorageLocation
@@ -47,7 +53,9 @@ enum class GroupingMode {
 fun DashboardScreen(
     repository: InventoryRepository,
     onNavigateToDetails: (String) -> Unit,
-    onNavigateToGroup: (GroupingMode, String) -> Unit = { _, _ -> }
+    globalLeadDays: Int = 2,
+    onNavigateToGroup: (GroupingMode, String) -> Unit = { _, _ -> },
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val entries by repository.getAllEntries().collectAsState(initial = emptyList())
     val locations by repository.getStorageLocations().collectAsState(initial = emptyList())
@@ -69,7 +77,22 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                navigationIcon = { },
+                title = {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_stash),
+                            contentDescription = stringResource(R.string.app_name),
+                            modifier = Modifier
+                                .height(56.dp)
+                                .padding(vertical = 4.dp), // Tiny vertical padding for perfect fit
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                },
                 actions = {
                     var expandedMenu by remember { mutableStateOf(false) }
                     IconButton(onClick = { expandedMenu = true }) {
@@ -90,6 +113,13 @@ fun DashboardScreen(
                             text = { Text(stringResource(R.string.action_add_category)) },
                             onClick = {
                                 showAddCategoryDialog = true
+                                expandedMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.screen_title_settings)) },
+                            onClick = {
+                                onNavigateToSettings()
                                 expandedMenu = false
                             }
                         )
@@ -257,6 +287,7 @@ fun DashboardScreen(
             locations = locations,
             categories = categories,
             existingEntries = entries,
+            globalLeadDays = globalLeadDays,
             onDismiss = { showAddDialog = false },
             onSave = { newOrModifiedEntry, isMerge ->
                 scope.launch { 
@@ -437,167 +468,6 @@ fun AddLocationDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-        }
-    )
-}
-
-@Composable
-fun InventoryItemCard(
-    entry: InventoryEntry,
-    onUpdate: (InventoryEntry) -> Unit,
-    onDelete: () -> Unit,
-    onDetailsClick: () -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    var showConsumeDialog by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "rotation")
-    val isExpired = entry.expirationDate?.isExpired(LocalDate.now()) == true
-
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isExpired) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(modifier = Modifier.clickable { expanded = !expanded }.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = entry.name, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = "${entry.quantity.amount} ${entry.quantity.unit.translated().lowercase()}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                if (isExpired) {
-                    Text(stringResource(R.string.label_expired), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelLarge)
-                    Spacer(Modifier.width(8.dp))
-                } else if (entry.isOpen) {
-                    Text(stringResource(R.string.label_opened), color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge)
-                    Spacer(Modifier.width(8.dp))
-                }
-                Icon(
-                    imageVector = Icons.Filled.ArrowDropDown,
-                    contentDescription = stringResource(R.string.expand),
-                    modifier = Modifier.rotate(rotation)
-                )
-            }
-            
-            AnimatedVisibility(visible = expanded) {
-                Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(Modifier.height(12.dp))
-                    
-                    if (entry.expirationDate != null) {
-                        val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                        Text(
-                            stringResource(R.string.expires_on, entry.expirationDate?.date?.format(formatter) ?: ""),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
-
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(onClick = onDetailsClick) { Text(stringResource(R.string.action_view_details)) }
-                            
-                            Row {
-                                if (!entry.isOpen) {
-                                    OutlinedButton(onClick = { onUpdate(entry.open(Instant.now())) }) {
-                                        Text(stringResource(R.string.action_open))
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                }
-                                Button(
-                                    onClick = { showConsumeDialog = true }
-                                ) {
-                                    Text(stringResource(R.string.action_consume))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    if (showConsumeDialog) {
-        ConsumeDialog(
-            entry = entry,
-            onDismiss = { showConsumeDialog = false },
-            onConsumeFull = {
-                onDelete()
-                showConsumeDialog = false
-            },
-            onConsumePartial = { amount ->
-                val updatedEntry = entry.consume(amount, Instant.now())
-                if (updatedEntry.quantity.amount <= BigDecimal.ZERO) {
-                    onDelete()
-                } else {
-                    onUpdate(updatedEntry)
-                }
-                showConsumeDialog = false
-            }
-        )
-    }
-}
-
-@Composable
-fun ConsumeDialog(
-    entry: InventoryEntry,
-    onDismiss: () -> Unit,
-    onConsumeFull: () -> Unit,
-    onConsumePartial: (BigDecimal) -> Unit
-) {
-    var amountText by remember { mutableStateOf("") }
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_consume_title, entry.name)) },
-        text = {
-            Column {
-                Text(stringResource(R.string.dialog_consume_description, entry.quantity.amount.toString(), entry.quantity.unit.translated().lowercase()))
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it },
-                    label = { Text(stringResource(R.string.label_amount)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val amount = amountText.toBigDecimalOrNull() ?: BigDecimal.ZERO
-                if (amount > BigDecimal.ZERO) {
-                    onConsumePartial(amount)
-                }
-            }) {
-                Text(stringResource(R.string.action_consume))
-            }
-        },
-        dismissButton = {
-            Row {
-                TextButton(
-                    onClick = onConsumeFull,
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(stringResource(R.string.action_consume_entirely))
-                }
-                Spacer(Modifier.width(8.dp))
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            }
         }
     )
 }

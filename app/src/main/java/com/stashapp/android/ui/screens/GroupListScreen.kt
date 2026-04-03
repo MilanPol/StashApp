@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
+import com.stashapp.android.ui.components.InventoryItemCard
 import com.stashapp.shared.domain.InventoryRepository
 import kotlinx.coroutines.launch
 

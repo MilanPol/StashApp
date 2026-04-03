@@ -40,16 +40,16 @@ class SqlDelightInventoryRepository(
 
     override fun getCategories(): Flow<List<Category>> {
         return categoryQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
-            list.map { Category(it.id, it.name, it.icon) }
+            list.map { Category(it.id, it.name, it.icon, it.default_lead_days?.toInt()) }
         }
     }
 
     override suspend fun addCategory(category: Category) {
-        categoryQueries.insert(category.id, category.name, category.icon)
+        categoryQueries.insert(category.id, category.name, category.icon, category.defaultLeadDays?.toLong())
     }
 
     override suspend fun updateCategory(category: Category) {
-        categoryQueries.update(category.name, category.icon, category.id)
+        categoryQueries.update(category.name, category.icon, category.defaultLeadDays?.toLong(), category.id)
     }
 
     override suspend fun removeCategory(id: String) {
@@ -79,6 +79,7 @@ class SqlDelightInventoryRepository(
             storage_location_id = entry.storageLocationId,
             category_id = entry.categoryId,
             opened_at = entry.openedAt?.toEpochMilli(),
+            alert_at = entry.alertAt?.toEpochMilli(),
             created_at = entry.createdAt.toEpochMilli(),
             updated_at = entry.updatedAt.toEpochMilli()
         )
@@ -115,6 +116,7 @@ class SqlDelightInventoryRepository(
             storageLocationId = row.storage_location_id,
             categoryId = row.category_id,
             openedAt = row.opened_at?.let { Instant.ofEpochMilli(it) },
+            alertAt = row.alert_at?.let { Instant.ofEpochMilli(it) },
             createdAt = Instant.ofEpochMilli(row.created_at),
             updatedAt = Instant.ofEpochMilli(row.updated_at)
         )
