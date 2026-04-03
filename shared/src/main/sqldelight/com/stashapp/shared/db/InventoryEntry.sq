@@ -1,0 +1,31 @@
+CREATE TABLE inventory_entry (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    quantity_amount TEXT NOT NULL,
+    quantity_unit TEXT NOT NULL,
+    expiration_date TEXT,
+    shelf_life_sealed_seconds INTEGER,
+    shelf_life_opened_seconds INTEGER,
+    storage_location_id TEXT,
+    category_id TEXT,
+    opened_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM inventory_entry ORDER BY name;
+
+selectById:
+SELECT * FROM inventory_entry WHERE id = ?;
+
+insert:
+INSERT OR REPLACE INTO inventory_entry(
+    id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM inventory_entry WHERE id = ?;
+
+updateQuantity:
+UPDATE inventory_entry SET quantity_amount = ?, updated_at = ? WHERE id = ?;

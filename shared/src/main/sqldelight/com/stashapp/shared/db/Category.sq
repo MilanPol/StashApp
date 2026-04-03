@@ -1,0 +1,11 @@
+CREATE TABLE category (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT ''
+);
+
+selectAll:
+SELECT * FROM category ORDER BY name;
+
+insert:
+INSERT OR REPLACE INTO category(id, name, icon) VALUES (?, ?, ?);

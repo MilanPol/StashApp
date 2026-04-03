@@ -8,8 +8,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.stashapp.android.R
 import com.stashapp.shared.domain.ExpirationDate
 import com.stashapp.shared.domain.InventoryEntry
 import com.stashapp.shared.domain.MeasurementUnit
@@ -28,6 +30,8 @@ fun AddItemScreen(
     locations: List<StorageLocation>,
     categories: List<Category>,
     existingEntries: List<InventoryEntry>,
+    preSelectedLocationId: String? = null,
+    preSelectedCategoryId: String? = null,
     onDismiss: () -> Unit,
     onSave: (InventoryEntry, Boolean) -> Unit
 ) {
@@ -38,10 +42,10 @@ fun AddItemScreen(
     var selectedUnit by remember { mutableStateOf(MeasurementUnit.PIECES) }
 
     var expandedLocation by remember { mutableStateOf(false) }
-    var selectedLocation by remember { mutableStateOf(locations.firstOrNull()) }
+    var selectedLocation by remember { mutableStateOf(locations.find { it.id == preSelectedLocationId } ?: locations.firstOrNull()) }
 
     var expandedCategory by remember { mutableStateOf(false) }
-    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+    var selectedCategory by remember { mutableStateOf<Category?>(categories.find { it.id == preSelectedCategoryId }) }
 
     var nameDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -67,7 +71,7 @@ fun AddItemScreen(
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxHeight(0.9f),
-        title = { Text(if (isMergeMode) "Merge Inventory Item" else "Add Inventory Item") },
+        title = { Text(if (isMergeMode) stringResource(R.string.dialog_merge_item_title) else stringResource(R.string.dialog_add_item_title)) },
         text = {
             Column(
                 modifier = Modifier
@@ -76,48 +80,54 @@ fun AddItemScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Name Input with Autocomplete
-                ExposedDropdownMenuBox(
-                    expanded = nameDropdownExpanded,
-                    onExpandedChange = { nameDropdownExpanded = it }
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { 
                             name = it
                             nameDropdownExpanded = true
                         },
-                        label = { Text("Item Name") },
-                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        label = { Text(stringResource(R.string.label_item_name)) },
+                        modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-                    if (filteredSuggestions.isNotEmpty()) {
-                        ExposedDropdownMenu(
-                            expanded = nameDropdownExpanded,
-                            onDismissRequest = { nameDropdownExpanded = false }
+                    
+                    if (nameDropdownExpanded && filteredSuggestions.isNotEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
                         ) {
-                            filteredSuggestions.forEach { suggestion ->
-                                DropdownMenuItem(
-                                    text = { Text(suggestion.name) },
-                                    onClick = {
-                                        name = suggestion.name
-                                        
-                                        // Auto-fill parameters to instantly trigger merge mode logic
-                                        if (suggestion.categoryId != null) {
-                                            selectedCategory = categories.find { it.id == suggestion.categoryId }
-                                        }
-                                        if (suggestion.storageLocationId != null) {
-                                            selectedLocation = locations.find { it.id == suggestion.storageLocationId }
-                                        }
-                                        selectedUnit = suggestion.quantity.unit
-                                        
-                                        datePickerState.selectedDateMillis = suggestion.expirationDate?.date
-                                            ?.atStartOfDay(java.time.ZoneOffset.UTC)
-                                            ?.toInstant()
-                                            ?.toEpochMilli()
-                                        
-                                        nameDropdownExpanded = false
+                            Column {
+                                filteredSuggestions.forEach { suggestion ->
+                                    TextButton(
+                                        onClick = {
+                                            name = suggestion.name
+                                            
+                                            // Auto-fill parameters to instantly trigger merge mode logic
+                                            if (suggestion.categoryId != null) {
+                                                selectedCategory = categories.find { it.id == suggestion.categoryId }
+                                            }
+                                            if (suggestion.storageLocationId != null) {
+                                                selectedLocation = locations.find { it.id == suggestion.storageLocationId }
+                                            }
+                                            selectedUnit = suggestion.quantity.unit
+                                            
+                                            datePickerState.selectedDateMillis = suggestion.expirationDate?.date
+                                                ?.atStartOfDay(java.time.ZoneOffset.UTC)
+                                                ?.toInstant()
+                                                ?.toEpochMilli()
+                                            
+                                            nameDropdownExpanded = false
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentPadding = PaddingValues(16.dp)
+                                    ) {
+                                        Text(text = suggestion.name, modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface)
                                     }
-                                )
+                                }
                             }
                         }
                     }
@@ -127,7 +137,7 @@ fun AddItemScreen(
                     OutlinedTextField(
                         value = quantityText,
                         onValueChange = { quantityText = it },
-                        label = { Text(if (isMergeMode) "Amount to Add" else "Amount") },
+                        label = { Text(if (isMergeMode) stringResource(R.string.label_amount_to_add) else stringResource(R.string.label_amount)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f)
                     )
@@ -167,10 +177,10 @@ fun AddItemScreen(
                     onExpandedChange = { expandedLocation = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedLocation?.name ?: "Select Location",
+                        value = selectedLocation?.name ?: stringResource(R.string.label_select_location),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Storage Location") },
+                        label = { Text(stringResource(R.string.label_storage_location)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedLocation) },
                         modifier = Modifier.fillMaxWidth().menuAnchor()
                     )
@@ -196,10 +206,10 @@ fun AddItemScreen(
                     onExpandedChange = { expandedCategory = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedCategory?.name ?: "None",
+                        value = selectedCategory?.name ?: stringResource(R.string.label_none),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Category (Optional)") },
+                        label = { Text(stringResource(R.string.label_category_optional)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
                         modifier = Modifier.fillMaxWidth().menuAnchor()
                     )
@@ -208,7 +218,7 @@ fun AddItemScreen(
                         onDismissRequest = { expandedCategory = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("None") },
+                            text = { Text(stringResource(R.string.label_none)) },
                             onClick = {
                                 selectedCategory = null
                                 expandedCategory = false
@@ -230,8 +240,8 @@ fun AddItemScreen(
                 val expirationText = if (selectedDateMillis != null) {
                     val date = Instant.ofEpochMilli(selectedDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
                     val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                    "Expires: ${date.format(formatter)}"
-                } else "Set Expiration Date"
+                    stringResource(R.string.expires_on, date.format(formatter))
+                } else stringResource(R.string.label_set_expiration_date)
                 
                 OutlinedButton(
                     onClick = { showDatePicker = true },
@@ -247,7 +257,7 @@ fun AddItemScreen(
                             onCheckedChange = { userWantsToMerge = it }
                         )
                         Text(
-                            text = "Merge with existing stock?",
+                            text = stringResource(R.string.label_merge_with_existing),
                             color = MaterialTheme.colorScheme.secondary,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -285,11 +295,11 @@ fun AddItemScreen(
                     }
                 }
             ) {
-                Text(if (isMergeMode) "Add to Existing" else "Save")
+                Text(if (isMergeMode) stringResource(R.string.action_add_to_existing) else stringResource(R.string.action_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 
@@ -297,10 +307,10 @@ fun AddItemScreen(
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("OK") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) {
             DatePicker(state = datePickerState)

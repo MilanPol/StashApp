@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StashApp</string>
+
+    <!-- Dashboard -->
+    <string name="nav_more_options">Meer opties</string>
+    <string name="action_add_space">Ruimte toevoegen</string>
+    <string name="action_add_category">Categorie toevoegen</string>
+    <string name="action_add_item">Item toevoegen</string>
+    <string name="search_all_items">Alle items zoeken…</string>
+    <string name="search_hint">Zoeken</string>
+    <string name="group_by_location">Op locatie</string>
+    <string name="group_by_category">Op categorie</string>
+    <string name="items_count">%1$d items</string>
+    <string name="no_items_found">Geen items gevonden.</string>
+
+    <!-- Item Card -->
+    <string name="label_expired">Verlopen</string>
+    <string name="label_opened">Geopend</string>
+    <string name="expand">Uitklappen</string>
+    <string name="expires_on">Vervalt: %1$s</string>
+    <string name="action_view_details">Details bekijken</string>
+    <string name="action_open">Openen</string>
+    <string name="action_consume">Verbruiken</string>
+
+    <!-- Consume Dialog -->
+    <string name="dialog_consume_title">%1$s verbruiken</string>
+    <string name="dialog_consume_description">Hoeveel heb je gebruikt? (Huidig: %1$s %2$s)</string>
+    <string name="label_amount">Hoeveelheid</string>
+    <string name="action_consume_entirely">Volledig verbruiken</string>
+    <string name="action_cancel">Annuleren</string>
+
+    <!-- Add Category Dialog -->
+    <string name="dialog_new_category_title">Nieuwe categorie</string>
+    <string name="hint_category_name">Categorienaam (bijv. Vlees)</string>
+    <string name="hint_icon_emoji">Icoon (Emoji)</string>
+    <string name="default_category_name">Nieuwe categorie</string>
+    <string name="action_save">Opslaan</string>
+
+    <!-- Add Location Dialog -->
+    <string name="dialog_new_space_title">Nieuwe opslagruimte</string>
+    <string name="hint_space_name">Naam ruimte (bijv. Koelkast)</string>
+    <string name="default_space_name">Nieuwe ruimte</string>
+
+    <!-- Add Item Screen -->
+    <string name="dialog_add_item_title">Item toevoegen</string>
+    <string name="dialog_merge_item_title">Item samenvoegen</string>
+    <string name="label_item_name">Itemnaam</string>
+    <string name="label_amount_to_add">Toe te voegen hoeveelheid</string>
+    <string name="label_storage_location">Opslaglocatie</string>
+    <string name="label_select_location">Locatie kiezen</string>
+    <string name="label_category_optional">Categorie (optioneel)</string>
+    <string name="label_none">Geen</string>
+    <string name="label_set_expiration_date">Vervaldatum instellen</string>
+    <string name="label_merge_with_existing">Samenvoegen met bestaande voorraad?</string>
+    <string name="action_add_to_existing">Toevoegen aan bestaand</string>
+    <string name="action_ok">OK</string>
+
+    <!-- Group List Screen -->
+    <string name="label_unknown">Onbekend</string>
+    <string name="nav_back">Terug</string>
+    <string name="search_in_group">Zoeken in %1$s</string>
+
+    <!-- Item Detail Screen -->
+    <string name="screen_title_item_details">Itemdetails</string>
+    <string name="label_quantity">Hoeveelheid</string>
+    <string name="label_status">Status</string>
+    <string name="status_opened">Geopend</string>
+    <string name="status_sealed">Verzegeld</string>
+    <string name="label_expiration_date">Vervaldatum</string>
+    <string name="no_expiration_set">Geen vervaldatum ingesteld</string>
+    <string name="label_opened_on">Geopend op</string>
+    <string name="label_location">Locatie</string>
+    <string name="label_category">Categorie</string>
+</resources>

@@ -12,15 +12,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.stashapp.shared.data.InMemoryInventoryRepository
+import com.stashapp.android.R
+import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
 import com.stashapp.shared.domain.StorageLocation
 import com.stashapp.shared.domain.Category
@@ -38,8 +41,9 @@ enum class GroupingMode {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    repository: InMemoryInventoryRepository,
-    onNavigateToDetails: (String) -> Unit
+    repository: InventoryRepository,
+    onNavigateToDetails: (String) -> Unit,
+    onNavigateToGroup: (GroupingMode, String) -> Unit = { _, _ -> }
 ) {
     val entries by repository.getAllEntries().collectAsState(initial = emptyList())
     val locations by repository.getStorageLocations().collectAsState(initial = emptyList())
@@ -55,25 +59,25 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("StashApp") },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     var expandedMenu by remember { mutableStateOf(false) }
                     IconButton(onClick = { expandedMenu = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More Options", tint = MaterialTheme.colorScheme.onPrimary)
+                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.nav_more_options), tint = MaterialTheme.colorScheme.onPrimary)
                     }
                     DropdownMenu(
                         expanded = expandedMenu,
                         onDismissRequest = { expandedMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Add Space") },
+                            text = { Text(stringResource(R.string.action_add_space)) },
                             onClick = {
                                 showAddLocationDialog = true
                                 expandedMenu = false
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Add Category") },
+                            text = { Text(stringResource(R.string.action_add_category)) },
                             onClick = {
                                 showAddCategoryDialog = true
                                 expandedMenu = false
@@ -90,69 +94,103 @@ fun DashboardScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddDialog = true },
-                icon = { Icon(Icons.Filled.Add, contentDescription = "Add Item") },
-                text = { Text("Add Item") }
+                icon = { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add_item)) },
+                text = { Text(stringResource(R.string.action_add_item)) }
             )
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            var searchQuery by remember { mutableStateOf("") }
+            
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(stringResource(R.string.search_all_items)) },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search_hint)) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                singleLine = true
+            )
+
             // Grouping Toggle
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
                     selected = groupingMode == GroupingMode.LOCATION,
                     onClick = { groupingMode = GroupingMode.LOCATION },
-                    label = { Text("By Location") }
+                    label = { Text(stringResource(R.string.group_by_location)) }
                 )
                 FilterChip(
                     selected = groupingMode == GroupingMode.CATEGORY,
                     onClick = { groupingMode = GroupingMode.CATEGORY },
-                    label = { Text("By Category") }
+                    label = { Text(stringResource(R.string.group_by_category)) }
                 )
             }
 
-            if (entries.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Your stash is empty. Add some items!", style = MaterialTheme.typography.bodyLarge)
-                }
-            } else {
-                val grouped = if (groupingMode == GroupingMode.LOCATION) {
-                    entries.groupBy { it.storageLocationId }
+            if (searchQuery.isNotBlank()) {
+                val searchResults = entries.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                if (searchResults.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(stringResource(R.string.no_items_found))
+                    }
                 } else {
-                    entries.groupBy { it.categoryId }
-                }
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    grouped.forEach { (groupId, items) ->
-                        val groupTitle = if (groupingMode == GroupingMode.LOCATION) {
-                            val loc = locations.find { it.id == groupId }
-                            loc?.let { "${it.icon} ${it.name}" } ?: "Unassigned Location"
-                        } else {
-                            val cat = categories.find { it.id == groupId }
-                            cat?.let { "${it.icon} ${it.name}" } ?: "Uncategorized"
-                        }
-
-                        item {
-                            Text(
-                                text = groupTitle,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                            )
-                        }
-                        items(items, key = { it.id }) { entry ->
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(searchResults, key = { it.id }) { entry ->
                             InventoryItemCard(
                                 entry = entry,
                                 onUpdate = { scope.launch { repository.updateEntry(it) } },
                                 onDelete = { scope.launch { repository.removeEntry(entry.id) } },
                                 onDetailsClick = { onNavigateToDetails(entry.id) }
                             )
+                        }
+                    }
+                }
+            } else {
+                // Show grid of groups
+                val groupItems = if (groupingMode == GroupingMode.LOCATION) {
+                    locations.map { loc -> 
+                        val count = entries.count { it.storageLocationId == loc.id }
+                        loc.id to ("${loc.icon} ${loc.name}" to count) 
+                    }
+                } else {
+                    categories.map { cat -> 
+                        val count = entries.count { it.categoryId == cat.id }
+                        cat.id to ("${cat.icon} ${cat.name}" to count) 
+                    }
+                }
+
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(groupItems.size, key = { groupItems[it].first }) { index ->
+                        val (id, data) = groupItems[index]
+                        val (title, count) = data
+                        ElevatedCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onNavigateToGroup(groupingMode, id) },
+                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(16.dp),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(text = title, style = MaterialTheme.typography.titleLarge)
+                                Spacer(Modifier.height(8.dp))
+                                Text(text = stringResource(R.string.items_count, count), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
@@ -164,7 +202,7 @@ fun DashboardScreen(
         AddItemScreen(
             locations = locations,
             categories = categories,
-            existingEntries = entries, // pass down to power Autocomplete/Merge
+            existingEntries = entries,
             onDismiss = { showAddDialog = false },
             onSave = { newOrModifiedEntry, isMerge ->
                 scope.launch { 
@@ -204,20 +242,20 @@ fun AddCategoryDialog(onDismiss: () -> Unit, onSave: (Category) -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Category") },
+        title = { Text(stringResource(R.string.dialog_new_category_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Category Name (e.g. Meat)") },
+                    label = { Text(stringResource(R.string.hint_category_name)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = icon,
                     onValueChange = { icon = it },
-                    label = { Text("Icon (Emoji)") },
+                    label = { Text(stringResource(R.string.hint_icon_emoji)) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -226,11 +264,11 @@ fun AddCategoryDialog(onDismiss: () -> Unit, onSave: (Category) -> Unit) {
             Button(onClick = {
                 onSave(Category(name = name.ifBlank { "New Category" }, icon = icon))
             }) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
@@ -242,20 +280,20 @@ fun AddLocationDialog(onDismiss: () -> Unit, onSave: (StorageLocation) -> Unit) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Storage Space") },
+        title = { Text(stringResource(R.string.dialog_new_space_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Space Name (e.g. Fridge)") },
+                    label = { Text(stringResource(R.string.hint_space_name)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = icon,
                     onValueChange = { icon = it },
-                    label = { Text("Icon (Emoji)") },
+                    label = { Text(stringResource(R.string.hint_icon_emoji)) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -264,11 +302,11 @@ fun AddLocationDialog(onDismiss: () -> Unit, onSave: (StorageLocation) -> Unit) 
             Button(onClick = {
                 onSave(StorageLocation(name = name.ifBlank { "New Space" }, icon = icon))
             }) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
@@ -288,7 +326,7 @@ fun InventoryItemCard(
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = if (isExpired) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isExpired) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
         )
     ) {
         Column(modifier = Modifier.clickable { expanded = !expanded }.padding(16.dp)) {
@@ -302,19 +340,19 @@ fun InventoryItemCard(
                     Text(
                         text = "${entry.quantity.amount} ${entry.quantity.unit.name.lowercase()}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 if (isExpired) {
-                    Text("Expired", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.label_expired), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.width(8.dp))
                 } else if (entry.isOpen) {
-                    Text("Opened", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.label_opened), color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.width(8.dp))
                 }
                 Icon(
                     imageVector = Icons.Filled.ArrowDropDown,
-                    contentDescription = "Expand",
+                    contentDescription = stringResource(R.string.expand),
                     modifier = Modifier.rotate(rotation)
                 )
             }
@@ -327,7 +365,7 @@ fun InventoryItemCard(
                     if (entry.expirationDate != null) {
                         val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
                         Text(
-                            "Expires: ${entry.expirationDate?.date?.format(formatter)}",
+                            stringResource(R.string.expires_on, entry.expirationDate?.date?.format(formatter) ?: ""),
                             style = MaterialTheme.typography.bodySmall
                         )
                         Spacer(Modifier.height(8.dp))
@@ -339,38 +377,20 @@ fun InventoryItemCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedButton(onClick = {
-                                    val remaining = entry.quantity.amount - BigDecimal.ONE
-                                    if (remaining <= BigDecimal.ZERO) onDelete()
-                                    else onUpdate(entry.copy(quantity = entry.quantity.copy(amount = remaining)))
-                                }) { Text("-") }
-                                Spacer(Modifier.width(8.dp))
-                                OutlinedButton(onClick = {
-                                    val sum = entry.quantity.amount + BigDecimal.ONE
-                                    onUpdate(entry.copy(quantity = entry.quantity.copy(amount = sum)))
-                                }) { Text("+") }
-                            }
-                            TextButton(onClick = onDetailsClick) { Text("Details") }
-                        }
-                        
-                        Spacer(Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            if (!entry.isOpen) {
-                                Button(onClick = { onUpdate(entry.open(Instant.now())) }) {
-                                    Text("Open")
+                            TextButton(onClick = onDetailsClick) { Text(stringResource(R.string.action_view_details)) }
+                            
+                            Row {
+                                if (!entry.isOpen) {
+                                    OutlinedButton(onClick = { onUpdate(entry.open(Instant.now())) }) {
+                                        Text(stringResource(R.string.action_open))
+                                    }
+                                    Spacer(Modifier.width(8.dp))
                                 }
-                                Spacer(Modifier.width(8.dp))
-                            }
-                            Button(
-                                onClick = { showConsumeDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                            ) {
-                                Text("Consume")
+                                Button(
+                                    onClick = { showConsumeDialog = true }
+                                ) {
+                                    Text(stringResource(R.string.action_consume))
+                                }
                             }
                         }
                     }
@@ -411,15 +431,15 @@ fun ConsumeDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Consume ${entry.name}") },
+        title = { Text(stringResource(R.string.dialog_consume_title, entry.name)) },
         text = {
             Column {
-                Text("How much did you use? (Current: ${entry.quantity.amount} ${entry.quantity.unit.name.lowercase()})")
+                Text(stringResource(R.string.dialog_consume_description, entry.quantity.amount.toString(), entry.quantity.unit.name.lowercase()))
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
-                    label = { Text("Amount") },
+                    label = { Text(stringResource(R.string.label_amount)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -432,7 +452,7 @@ fun ConsumeDialog(
                     onConsumePartial(amount)
                 }
             }) {
-                Text("Consume")
+                Text(stringResource(R.string.action_consume))
             }
         },
         dismissButton = {
@@ -441,11 +461,11 @@ fun ConsumeDialog(
                     onClick = onConsumeFull,
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Consume Entirely")
+                    Text(stringResource(R.string.action_consume_entirely))
                 }
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         }

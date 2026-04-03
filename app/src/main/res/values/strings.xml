@@ -1,3 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">StashApp</string>
+
+    <!-- Dashboard -->
+    <string name="nav_more_options">More Options</string>
+    <string name="action_add_space">Add Space</string>
+    <string name="action_add_category">Add Category</string>
+    <string name="action_add_item">Add Item</string>
+    <string name="search_all_items">Search all items…</string>
+    <string name="search_hint">Search</string>
+    <string name="group_by_location">By Location</string>
+    <string name="group_by_category">By Category</string>
+    <string name="items_count">%1$d items</string>
+    <string name="no_items_found">No items found.</string>
+
+    <!-- Item Card -->
+    <string name="label_expired">Expired</string>
+    <string name="label_opened">Opened</string>
+    <string name="expand">Expand</string>
+    <string name="expires_on">Expires: %1$s</string>
+    <string name="action_view_details">View Details</string>
+    <string name="action_open">Open</string>
+    <string name="action_consume">Consume</string>
+
+    <!-- Consume Dialog -->
+    <string name="dialog_consume_title">Consume %1$s</string>
+    <string name="dialog_consume_description">How much did you use? (Current: %1$s %2$s)</string>
+    <string name="label_amount">Amount</string>
+    <string name="action_consume_entirely">Consume Entirely</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Add Category Dialog -->
+    <string name="dialog_new_category_title">New Category</string>
+    <string name="hint_category_name">Category Name (e.g. Meat)</string>
+    <string name="hint_icon_emoji">Icon (Emoji)</string>
+    <string name="default_category_name">New Category</string>
+    <string name="action_save">Save</string>
+
+    <!-- Add Location Dialog -->
+    <string name="dialog_new_space_title">New Storage Space</string>
+    <string name="hint_space_name">Space Name (e.g. Fridge)</string>
+    <string name="default_space_name">New Space</string>
+
+    <!-- Add Item Screen -->
+    <string name="dialog_add_item_title">Add Inventory Item</string>
+    <string name="dialog_merge_item_title">Merge Inventory Item</string>
+    <string name="label_item_name">Item Name</string>
+    <string name="label_amount_to_add">Amount to Add</string>
+    <string name="label_storage_location">Storage Location</string>
+    <string name="label_select_location">Select Location</string>
+    <string name="label_category_optional">Category (Optional)</string>
+    <string name="label_none">None</string>
+    <string name="label_set_expiration_date">Set Expiration Date</string>
+    <string name="label_merge_with_existing">Merge with existing stock?</string>
+    <string name="action_add_to_existing">Add to Existing</string>
+    <string name="action_ok">OK</string>
+
+    <!-- Group List Screen -->
+    <string name="label_unknown">Unknown</string>
+    <string name="nav_back">Back</string>
+    <string name="search_in_group">Search in %1$s</string>
+
+    <!-- Item Detail Screen -->
+    <string name="screen_title_item_details">Item Details</string>
+    <string name="label_quantity">Quantity</string>
+    <string name="label_status">Status</string>
+    <string name="status_opened">Opened</string>
+    <string name="status_sealed">Sealed</string>
+    <string name="label_expiration_date">Expiration Date</string>
+    <string name="no_expiration_set">No Expiration Set</string>
+    <string name="label_opened_on">Opened On</string>
+    <string name="label_location">Location</string>
+    <string name="label_category">Category</string>
 </resources>

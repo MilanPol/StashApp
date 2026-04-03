@@ -7,9 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.stashapp.shared.data.InMemoryInventoryRepository
+import com.stashapp.android.R
+import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
 import java.time.LocalDate
 import java.time.ZoneId
@@ -19,12 +21,14 @@ import java.time.format.FormatStyle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemDetailScreen(
-    repository: InMemoryInventoryRepository,
+    repository: InventoryRepository,
     itemId: String?,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToGroup: (type: String, id: String) -> Unit = { _, _ -> }
 ) {
     var entry by remember { mutableStateOf<InventoryEntry?>(null) }
     val categories by repository.getCategories().collectAsState(initial = emptyList())
+    val locations by repository.getStorageLocations().collectAsState(initial = emptyList())
 
     LaunchedEffect(itemId) {
         if (itemId != null) {
@@ -35,10 +39,10 @@ fun ItemDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Item Details") },
+                title = { Text(stringResource(R.string.screen_title_item_details)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -69,27 +73,50 @@ fun ItemDetailScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
-                DetailRow("Quantity", "${currentEntry.quantity.amount} ${currentEntry.quantity.unit.name.lowercase()}")
-                DetailRow("Status", if (currentEntry.isOpen) "Opened" else "Sealed")
-                
+                DetailRow(
+                    stringResource(R.string.label_quantity),
+                    "${currentEntry.quantity.amount} ${currentEntry.quantity.unit.name.lowercase()}"
+                )
+                DetailRow(
+                    stringResource(R.string.label_status),
+                    if (currentEntry.isOpen) stringResource(R.string.status_opened) else stringResource(R.string.status_sealed)
+                )
                 
                 val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
                 val dateTimeFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault())
 
                 val isExpired = currentEntry.expirationDate?.isExpired(LocalDate.now()) == true
                 DetailRow(
-                    "Expiration Date", 
-                    currentEntry.expirationDate?.date?.format(dateFormatter) ?: "No Expiration Set",
+                    stringResource(R.string.label_expiration_date),
+                    currentEntry.expirationDate?.date?.format(dateFormatter) ?: stringResource(R.string.no_expiration_set),
                     valueColor = if (isExpired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
                 if (currentEntry.openedAt != null) {
-                    DetailRow("Opened On", dateTimeFormatter.format(currentEntry.openedAt))
+                    DetailRow(stringResource(R.string.label_opened_on), dateTimeFormatter.format(currentEntry.openedAt))
+                }
+                
+                if (currentEntry.storageLocationId != null) {
+                    val loc = locations.find { it.id == currentEntry.storageLocationId }
+                    if (loc != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = stringResource(R.string.label_location), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TextButton(onClick = { onNavigateToGroup("LOCATION", loc.id) }) {
+                                Text(text = "${loc.icon} ${loc.name}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
                 }
                 
                 if (currentEntry.categoryId != null) {
                     val cat = categories.find { it.id == currentEntry.categoryId }
                     if (cat != null) {
-                        DetailRow("Category", "${cat.icon} ${cat.name}")
+                        DetailRow(stringResource(R.string.label_category), "${cat.icon} ${cat.name}")
                     }
                 }
             }

@@ -1,0 +1,11 @@
+CREATE TABLE storage_location (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT ''
+);
+
+selectAll:
+SELECT * FROM storage_location ORDER BY name;
+
+insert:
+INSERT OR REPLACE INTO storage_location(id, name, icon) VALUES (?, ?, ?);

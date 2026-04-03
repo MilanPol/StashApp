@@ -36,7 +36,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
+        kotlinCompilerExtensionVersion = "1.5.11"
     }
 }
 
@@ -60,4 +60,7 @@ dependencies {
     
     // Icons
     implementation("androidx.compose.material:material-icons-extended")
+    
+    // Database Driver
+    implementation("app.cash.sqldelight:android-driver:2.0.2")
 }
