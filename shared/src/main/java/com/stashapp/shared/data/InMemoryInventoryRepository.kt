@@ -53,10 +53,34 @@ class InMemoryInventoryRepository : InventoryRepository {
     override suspend fun addStorageLocation(location: StorageLocation) {
         _locations.update { it + location }
     }
+
+    override suspend fun updateStorageLocation(location: StorageLocation) {
+        _locations.update { list ->
+            list.map { if (it.id == location.id) location else it }
+        }
+    }
+
+    override suspend fun removeStorageLocation(id: String) {
+        _locations.update { list ->
+            list.filterNot { it.id == id }
+        }
+    }
     
     override fun getCategories(): Flow<List<Category>> = _categories.asStateFlow()
 
     override suspend fun addCategory(category: Category) {
         _categories.update { it + category }
+    }
+
+    override suspend fun updateCategory(category: Category) {
+        _categories.update { list ->
+            list.map { if (it.id == category.id) category else it }
+        }
+    }
+
+    override suspend fun removeCategory(id: String) {
+        _categories.update { list ->
+            list.filterNot { it.id == id }
+        }
     }
 }

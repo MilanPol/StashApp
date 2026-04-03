@@ -6,6 +6,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -23,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
+import com.stashapp.android.ui.components.translated
 import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
 import com.stashapp.shared.domain.StorageLocation
@@ -52,6 +56,12 @@ fun DashboardScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showAddLocationDialog by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
+    
+    var editingLocation by remember { mutableStateOf<StorageLocation?>(null) }
+    var editingCategory by remember { mutableStateOf<Category?>(null) }
+    var deletingLocation by remember { mutableStateOf<StorageLocation?>(null) }
+    var deletingCategory by remember { mutableStateOf<Category?>(null) }
+    
     var groupingMode by remember { mutableStateOf(GroupingMode.LOCATION) }
     
     val scope = rememberCoroutineScope()
@@ -155,25 +165,38 @@ fun DashboardScreen(
                 val groupItems = if (groupingMode == GroupingMode.LOCATION) {
                     locations.map { loc -> 
                         val count = entries.count { it.storageLocationId == loc.id }
-                        loc.id to ("${loc.icon} ${loc.name}" to count) 
+                        loc to count
                     }
                 } else {
                     categories.map { cat -> 
                         val count = entries.count { it.categoryId == cat.id }
-                        cat.id to ("${cat.icon} ${cat.name}" to count) 
+                        cat to count
                     }
                 }
 
-                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(groupItems.size, key = { groupItems[it].first }) { index ->
-                        val (id, data) = groupItems[index]
-                        val (title, count) = data
+                    items(
+                        items = groupItems,
+                        key = { (item, _) -> 
+                            when (item) {
+                                is StorageLocation -> "loc_${item.id}"
+                                is Category -> "cat_${item.id}"
+                                else -> item.hashCode()
+                            }
+                        }
+                    ) { (item, count) ->
+                        val (id, title, icon) = when (item) {
+                            is StorageLocation -> Triple(item.id, item.name, item.icon)
+                            is Category -> Triple(item.id, item.name, item.icon)
+                            else -> Triple("", "", "")
+                        }
+                        
                         ElevatedCard(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -182,14 +205,45 @@ fun DashboardScreen(
                                 .clickable { onNavigateToGroup(groupingMode, id) },
                             colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize().padding(16.dp),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(text = title, style = MaterialTheme.typography.titleLarge)
-                                Spacer(Modifier.height(8.dp))
-                                Text(text = stringResource(R.string.items_count, count), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                var menuExpanded by remember { mutableStateOf(false) }
+                                
+                                Column(
+                                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                                    verticalArrangement = Arrangement.Center,
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(text = "$icon $title", style = MaterialTheme.typography.titleLarge)
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(text = stringResource(R.string.items_count, count), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                
+                                Box(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+                                    IconButton(onClick = { menuExpanded = true }) {
+                                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.nav_more_options))
+                                    }
+                                    DropdownMenu(
+                                        expanded = menuExpanded,
+                                        onDismissRequest = { menuExpanded = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.action_edit)) },
+                                            onClick = {
+                                                if (item is StorageLocation) editingLocation = item
+                                                else if (item is Category) editingCategory = item
+                                                menuExpanded = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) },
+                                            onClick = {
+                                                if (item is StorageLocation) deletingLocation = item
+                                                else if (item is Category) deletingCategory = item
+                                                menuExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -214,35 +268,105 @@ fun DashboardScreen(
         )
     }
 
-    if (showAddLocationDialog) {
-        AddLocationDialog(
-            onDismiss = { showAddLocationDialog = false },
-            onSave = { newSpace -> 
-                scope.launch { repository.addStorageLocation(newSpace) }
-                showAddLocationDialog = false
+    if (showAddCategoryDialog || editingCategory != null) {
+        val initialCategory = editingCategory
+        AddCategoryDialog(
+            initialCategory = initialCategory,
+            onDismiss = { 
+                showAddCategoryDialog = false
+                editingCategory = null
+            },
+            onSave = { cat -> 
+                scope.launch { 
+                    if (initialCategory != null) repository.updateCategory(cat)
+                    else repository.addCategory(cat) 
+                }
+                showAddCategoryDialog = false
+                editingCategory = null
             }
         )
     }
 
-    if (showAddCategoryDialog) {
-        AddCategoryDialog(
-            onDismiss = { showAddCategoryDialog = false },
-            onSave = { newCat -> 
-                scope.launch { repository.addCategory(newCat) }
-                showAddCategoryDialog = false
+    if (showAddLocationDialog || editingLocation != null) {
+        val initialLocation = editingLocation
+        AddLocationDialog(
+            initialLocation = initialLocation,
+            onDismiss = { 
+                showAddLocationDialog = false
+                editingLocation = null
+            },
+            onSave = { loc -> 
+                scope.launch { 
+                    if (initialLocation != null) repository.updateStorageLocation(loc)
+                    else repository.addStorageLocation(loc) 
+                }
+                showAddLocationDialog = false
+                editingLocation = null
+            }
+        )
+    }
+
+    if (deletingLocation != null) {
+        val locationToDelete = deletingLocation!!
+        AlertDialog(
+            onDismissRequest = { deletingLocation = null },
+            title = { Text(stringResource(R.string.dialog_delete_space_title)) },
+            text = { Text(stringResource(R.string.delete_confirmation_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch { repository.removeStorageLocation(locationToDelete.id) }
+                        deletingLocation = null
+                    }
+                ) {
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingLocation = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
+    if (deletingCategory != null) {
+        val categoryToDelete = deletingCategory!!
+        AlertDialog(
+            onDismissRequest = { deletingCategory = null },
+            title = { Text(stringResource(R.string.dialog_delete_category_title)) },
+            text = { Text(stringResource(R.string.delete_confirmation_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch { repository.removeCategory(categoryToDelete.id) }
+                        deletingCategory = null
+                    }
+                ) {
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingCategory = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
 }
 
 @Composable
-fun AddCategoryDialog(onDismiss: () -> Unit, onSave: (Category) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var icon by remember { mutableStateOf("📁") }
+fun AddCategoryDialog(
+    initialCategory: Category? = null,
+    onDismiss: () -> Unit, 
+    onSave: (Category) -> Unit
+) {
+    var name by remember { mutableStateOf(initialCategory?.name ?: "") }
+    var icon by remember { mutableStateOf(initialCategory?.icon ?: "📁") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_new_category_title)) },
+        title = { Text(if (initialCategory != null) stringResource(R.string.action_edit) else stringResource(R.string.dialog_new_category_title)) },
         text = {
             Column {
                 OutlinedTextField(
@@ -262,7 +386,8 @@ fun AddCategoryDialog(onDismiss: () -> Unit, onSave: (Category) -> Unit) {
         },
         confirmButton = {
             Button(onClick = {
-                onSave(Category(name = name.ifBlank { "New Category" }, icon = icon))
+                onSave(initialCategory?.copy(name = name.ifBlank { "New Category" }, icon = icon) 
+                    ?: Category(name = name.ifBlank { "New Category" }, icon = icon))
             }) {
                 Text(stringResource(R.string.action_save))
             }
@@ -274,13 +399,17 @@ fun AddCategoryDialog(onDismiss: () -> Unit, onSave: (Category) -> Unit) {
 }
 
 @Composable
-fun AddLocationDialog(onDismiss: () -> Unit, onSave: (StorageLocation) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var icon by remember { mutableStateOf("📦") }
+fun AddLocationDialog(
+    initialLocation: StorageLocation? = null,
+    onDismiss: () -> Unit, 
+    onSave: (StorageLocation) -> Unit
+) {
+    var name by remember { mutableStateOf(initialLocation?.name ?: "") }
+    var icon by remember { mutableStateOf(initialLocation?.icon ?: "📦") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.dialog_new_space_title)) },
+        title = { Text(if (initialLocation != null) stringResource(R.string.action_edit) else stringResource(R.string.dialog_new_space_title)) },
         text = {
             Column {
                 OutlinedTextField(
@@ -300,7 +429,8 @@ fun AddLocationDialog(onDismiss: () -> Unit, onSave: (StorageLocation) -> Unit) 
         },
         confirmButton = {
             Button(onClick = {
-                onSave(StorageLocation(name = name.ifBlank { "New Space" }, icon = icon))
+                onSave(initialLocation?.copy(name = name.ifBlank { "New Space" }, icon = icon)
+                    ?: StorageLocation(name = name.ifBlank { "New Space" }, icon = icon))
             }) {
                 Text(stringResource(R.string.action_save))
             }
@@ -338,7 +468,7 @@ fun InventoryItemCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = entry.name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "${entry.quantity.amount} ${entry.quantity.unit.name.lowercase()}",
+                        text = "${entry.quantity.amount} ${entry.quantity.unit.translated().lowercase()}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -359,7 +489,7 @@ fun InventoryItemCard(
             
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(Modifier.height(12.dp))
                     
                     if (entry.expirationDate != null) {
@@ -434,7 +564,7 @@ fun ConsumeDialog(
         title = { Text(stringResource(R.string.dialog_consume_title, entry.name)) },
         text = {
             Column {
-                Text(stringResource(R.string.dialog_consume_description, entry.quantity.amount.toString(), entry.quantity.unit.name.lowercase()))
+                Text(stringResource(R.string.dialog_consume_description, entry.quantity.amount.toString(), entry.quantity.unit.translated().lowercase()))
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = amountText,

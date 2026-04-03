@@ -30,6 +30,14 @@ class SqlDelightInventoryRepository(
         locationQueries.insert(location.id, location.name, location.icon)
     }
 
+    override suspend fun updateStorageLocation(location: StorageLocation) {
+        locationQueries.update(location.name, location.icon, location.id)
+    }
+
+    override suspend fun removeStorageLocation(id: String) {
+        locationQueries.deleteById(id)
+    }
+
     override fun getCategories(): Flow<List<Category>> {
         return categoryQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
             list.map { Category(it.id, it.name, it.icon) }
@@ -38,6 +46,14 @@ class SqlDelightInventoryRepository(
 
     override suspend fun addCategory(category: Category) {
         categoryQueries.insert(category.id, category.name, category.icon)
+    }
+
+    override suspend fun updateCategory(category: Category) {
+        categoryQueries.update(category.name, category.icon, category.id)
+    }
+
+    override suspend fun removeCategory(id: String) {
+        categoryQueries.deleteById(id)
     }
 
     override fun getAllEntries(): Flow<List<InventoryEntry>> {

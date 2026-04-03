@@ -14,6 +14,13 @@
     <string name="items_count">%1$d items</string>
     <string name="no_items_found">No items found.</string>
 
+    <!-- Units -->
+    <string name="unit_liters">Liters</string>
+    <string name="unit_milliliters">Milliliters</string>
+    <string name="unit_kilograms">Kilograms</string>
+    <string name="unit_grams">Grams</string>
+    <string name="unit_pieces">Pieces</string>
+
     <!-- Item Card -->
     <string name="label_expired">Expired</string>
     <string name="label_opened">Opened</string>
@@ -36,6 +43,13 @@
     <string name="hint_icon_emoji">Icon (Emoji)</string>
     <string name="default_category_name">New Category</string>
     <string name="action_save">Save</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_delete">Delete</string>
+
+    <!-- Delete Confirmation -->
+    <string name="dialog_delete_space_title">Delete Space?</string>
+    <string name="dialog_delete_category_title">Delete Category?</string>
+    <string name="delete_confirmation_message">Are you sure? Items in this space/category will no longer have a specified location/category.</string>
 
     <!-- Add Location Dialog -->
     <string name="dialog_new_space_title">New Storage Space</string>

@@ -14,6 +14,13 @@
     <string name="items_count">%1$d items</string>
     <string name="no_items_found">Geen items gevonden.</string>
 
+    <!-- Units -->
+    <string name="unit_liters">Liter</string>
+    <string name="unit_milliliters">Milliliter</string>
+    <string name="unit_kilograms">Kilogram</string>
+    <string name="unit_grams">Gram</string>
+    <string name="unit_pieces">Stuks</string>
+
     <!-- Item Card -->
     <string name="label_expired">Verlopen</string>
     <string name="label_opened">Geopend</string>
@@ -36,6 +43,13 @@
     <string name="hint_icon_emoji">Icoon (Emoji)</string>
     <string name="default_category_name">Nieuwe categorie</string>
     <string name="action_save">Opslaan</string>
+    <string name="action_edit">Bewerken</string>
+    <string name="action_delete">Verwijderen</string>
+
+    <!-- Delete Confirmation -->
+    <string name="dialog_delete_space_title">Ruimte verwijderen?</string>
+    <string name="dialog_delete_category_title">Categorie verwijderen?</string>
+    <string name="delete_confirmation_message">Weet je het zeker? Items in deze ruimte/categorie zullen geen opgegeven locatie/categorie meer hebben.</string>
 
     <!-- Add Location Dialog -->
     <string name="dialog_new_space_title">Nieuwe opslagruimte</string>

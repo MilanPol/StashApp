@@ -9,3 +9,9 @@ SELECT * FROM category ORDER BY name;
 
 insert:
 INSERT OR REPLACE INTO category(id, name, icon) VALUES (?, ?, ?);
+
+update:
+UPDATE category SET name = ?, icon = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM category WHERE id = ?;

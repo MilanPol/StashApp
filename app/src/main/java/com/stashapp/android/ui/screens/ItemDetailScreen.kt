@@ -3,16 +3,21 @@ package com.stashapp.android.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
+import com.stashapp.android.ui.components.translated
 import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -27,12 +32,17 @@ fun ItemDetailScreen(
     onNavigateToGroup: (type: String, id: String) -> Unit = { _, _ -> }
 ) {
     var entry by remember { mutableStateOf<InventoryEntry?>(null) }
+    val allEntries by repository.getAllEntries().collectAsState(initial = emptyList())
     val categories by repository.getCategories().collectAsState(initial = emptyList())
     val locations by repository.getStorageLocations().collectAsState(initial = emptyList())
 
-    LaunchedEffect(itemId) {
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(itemId, allEntries) {
         if (itemId != null) {
-            entry = repository.getEntryById(itemId)
+            entry = allEntries.find { it.id == itemId }
         }
     }
 
@@ -43,6 +53,14 @@ fun ItemDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showEditDialog = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.action_edit))
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.action_delete))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -75,7 +93,7 @@ fun ItemDetailScreen(
 
                 DetailRow(
                     stringResource(R.string.label_quantity),
-                    "${currentEntry.quantity.amount} ${currentEntry.quantity.unit.name.lowercase()}"
+                    "${currentEntry.quantity.amount} ${currentEntry.quantity.unit.translated().lowercase()}"
                 )
                 DetailRow(
                     stringResource(R.string.label_status),
@@ -121,6 +139,46 @@ fun ItemDetailScreen(
                 }
             }
         }
+    }
+
+    if (showEditDialog && entry != null) {
+        AddItemScreen(
+            locations = locations,
+            categories = categories,
+            existingEntries = allEntries,
+            initialEntry = entry,
+            onDismiss = { showEditDialog = false },
+            onSave = { modifiedEntry, _ ->
+                scope.launch { repository.updateEntry(modifiedEntry) }
+                showEditDialog = false
+            }
+        )
+    }
+
+    if (showDeleteDialog && entry != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(stringResource(R.string.action_delete)) },
+            text = { Text(stringResource(R.string.delete_confirmation_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch { 
+                            repository.removeEntry(entry!!.id)
+                            onNavigateBack()
+                        }
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
     }
 }
 

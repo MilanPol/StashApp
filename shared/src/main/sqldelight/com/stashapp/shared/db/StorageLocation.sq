@@ -9,3 +9,9 @@ SELECT * FROM storage_location ORDER BY name;
 
 insert:
 INSERT OR REPLACE INTO storage_location(id, name, icon) VALUES (?, ?, ?);
+
+update:
+UPDATE storage_location SET name = ?, icon = ? WHERE id = ?;
+
+deleteById:
+DELETE FROM storage_location WHERE id = ?;

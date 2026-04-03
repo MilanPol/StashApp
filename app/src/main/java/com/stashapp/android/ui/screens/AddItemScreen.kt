@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
+import com.stashapp.android.ui.components.translated
 import com.stashapp.shared.domain.ExpirationDate
 import com.stashapp.shared.domain.InventoryEntry
 import com.stashapp.shared.domain.MeasurementUnit
@@ -30,27 +31,39 @@ fun AddItemScreen(
     locations: List<StorageLocation>,
     categories: List<Category>,
     existingEntries: List<InventoryEntry>,
+    initialEntry: InventoryEntry? = null,
     preSelectedLocationId: String? = null,
     preSelectedCategoryId: String? = null,
     onDismiss: () -> Unit,
     onSave: (InventoryEntry, Boolean) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var quantityText by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(initialEntry?.name ?: "") }
+    var quantityText by remember { mutableStateOf(initialEntry?.quantity?.amount?.toString() ?: "") }
     
     var expandedUnit by remember { mutableStateOf(false) }
-    var selectedUnit by remember { mutableStateOf(MeasurementUnit.PIECES) }
+    var selectedUnit by remember { mutableStateOf(initialEntry?.quantity?.unit ?: MeasurementUnit.PIECES) }
 
     var expandedLocation by remember { mutableStateOf(false) }
-    var selectedLocation by remember { mutableStateOf(locations.find { it.id == preSelectedLocationId } ?: locations.firstOrNull()) }
+    var selectedLocation by remember { mutableStateOf(
+        initialEntry?.storageLocationId?.let { id -> locations.find { it.id == id } }
+        ?: locations.find { it.id == preSelectedLocationId } 
+        ?: locations.firstOrNull()
+    ) }
 
     var expandedCategory by remember { mutableStateOf(false) }
-    var selectedCategory by remember { mutableStateOf<Category?>(categories.find { it.id == preSelectedCategoryId }) }
+    var selectedCategory by remember { mutableStateOf<Category?>(
+        initialEntry?.categoryId?.let { id -> categories.find { it.id == id } }
+        ?: categories.find { it.id == preSelectedCategoryId }
+    ) }
 
     var nameDropdownExpanded by remember { mutableStateOf(false) }
 
     var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState()
+    val initialDateMillis = initialEntry?.expirationDate?.date
+        ?.atStartOfDay(java.time.ZoneOffset.UTC)
+        ?.toInstant()
+        ?.toEpochMilli()
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
 
     val filteredSuggestions = existingEntries.filter { 
         it.name.contains(name, ignoreCase = true) && name.isNotBlank() 
@@ -71,7 +84,14 @@ fun AddItemScreen(
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.fillMaxHeight(0.9f),
-        title = { Text(if (isMergeMode) stringResource(R.string.dialog_merge_item_title) else stringResource(R.string.dialog_add_item_title)) },
+        title = { 
+            val title = when {
+                initialEntry != null -> stringResource(R.string.action_edit)
+                isMergeMode -> stringResource(R.string.dialog_merge_item_title)
+                else -> stringResource(R.string.dialog_add_item_title)
+            }
+            Text(title) 
+        },
         text = {
             Column(
                 modifier = Modifier
@@ -148,7 +168,7 @@ fun AddItemScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         OutlinedTextField(
-                            value = selectedUnit.name.lowercase(),
+                            value = selectedUnit.translated().lowercase(),
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedUnit) },
@@ -160,7 +180,7 @@ fun AddItemScreen(
                         ) {
                             MeasurementUnit.values().forEach { unit ->
                                 DropdownMenuItem(
-                                    text = { Text(unit.name.lowercase()) },
+                                    text = { Text(unit.translated().lowercase()) },
                                     onClick = {
                                         selectedUnit = unit
                                         expandedUnit = false
@@ -250,7 +270,7 @@ fun AddItemScreen(
                     Text(expirationText)
                 }
 
-                if (existingMatch != null) {
+                if (existingMatch != null && initialEntry == null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = userWantsToMerge,
@@ -275,27 +295,32 @@ fun AddItemScreen(
                             ExpirationDate(localDate)
                         }
 
-                        if (isMergeMode && existingMatch != null) {
+                        if (isMergeMode && existingMatch != null && initialEntry == null) {
                             val mergedEntry = existingMatch.copy(
                                 quantity = Quantity(existingMatch.quantity.amount + amount, selectedUnit),
                                 updatedAt = Instant.now()
                             )
                             onSave(mergedEntry, true)
                         } else {
-                            val newEntry = InventoryEntry(
+                            val entryToSave = (initialEntry ?: InventoryEntry()).copy(
                                 name = name,
                                 quantity = Quantity(amount, selectedUnit),
                                 expirationDate = expDate,
-                                shelfLife = null,
                                 storageLocationId = selectedLocation?.id,
-                                categoryId = selectedCategory?.id
+                                categoryId = selectedCategory?.id,
+                                updatedAt = Instant.now()
                             )
-                            onSave(newEntry, false)
+                            onSave(entryToSave, initialEntry != null)
                         }
                     }
                 }
             ) {
-                Text(if (isMergeMode) stringResource(R.string.action_add_to_existing) else stringResource(R.string.action_save))
+                val buttonText = when {
+                    initialEntry != null -> stringResource(R.string.action_save)
+                    isMergeMode -> stringResource(R.string.action_add_to_existing)
+                    else -> stringResource(R.string.action_save)
+                }
+                Text(buttonText)
             }
         },
         dismissButton = {

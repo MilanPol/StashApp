@@ -56,10 +56,10 @@ data class Category(
 
 data class InventoryEntry(
     val id: String = UUID.randomUUID().toString(),
-    val name: String,
-    val quantity: Quantity,
-    val expirationDate: ExpirationDate?,
-    val shelfLife: ShelfLife?,
+    val name: String = "",
+    val quantity: Quantity = Quantity(BigDecimal.ZERO, MeasurementUnit.PIECES),
+    val expirationDate: ExpirationDate? = null,
+    val shelfLife: ShelfLife? = null,
     val storageLocationId: String? = null,
     val categoryId: String? = null,
     val openedAt: Instant? = null,
@@ -94,6 +94,10 @@ interface InventoryRepository {
     suspend fun removeEntry(id: String)
     fun getStorageLocations(): Flow<List<StorageLocation>>
     suspend fun addStorageLocation(location: StorageLocation)
+    suspend fun updateStorageLocation(location: StorageLocation)
+    suspend fun removeStorageLocation(id: String)
     fun getCategories(): Flow<List<Category>>
     suspend fun addCategory(category: Category)
+    suspend fun updateCategory(category: Category)
+    suspend fun removeCategory(id: String)
 }
