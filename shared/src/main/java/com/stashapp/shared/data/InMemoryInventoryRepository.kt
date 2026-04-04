@@ -30,6 +30,13 @@ class InMemoryInventoryRepository : InventoryRepository {
         return _entries.asStateFlow()
     }
 
+    override fun getExpiringEntries(now: java.time.Instant): Flow<List<com.stashapp.shared.domain.InventoryEntry>> {
+        return _entries.map { list ->
+            list.filter { it.alertAt != null && !it.alertAt.isAfter(now) }
+                .sortedBy { it.alertAt }
+        }
+    }
+
     override suspend fun getEntryById(id: String): InventoryEntry? {
         return _entries.value.find { it.id == id }
     }
@@ -50,7 +57,11 @@ class InMemoryInventoryRepository : InventoryRepository {
         }
     }
 
-    override fun getStorageLocations(): Flow<List<StorageLocation>> = _locations.asStateFlow()
+    override fun getStorageLocations(parentId: String?): Flow<List<StorageLocation>> {
+        return _locations.map { list ->
+            list.filter { it.parentId == parentId }.sortedBy { it.name }
+        }
+    }
 
     override suspend fun addStorageLocation(location: StorageLocation) {
         _locations.update { it + location }

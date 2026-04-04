@@ -7,18 +7,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import com.stashapp.android.ui.components.ExpiringItemsDialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.translated
 import com.stashapp.android.ui.components.InventoryItemCard
+import com.stashapp.android.data.SettingsManager
 import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
 import com.stashapp.shared.domain.StorageLocation
@@ -52,16 +57,21 @@ enum class GroupingMode {
 @Composable
 fun DashboardScreen(
     repository: InventoryRepository,
+    settingsManager: SettingsManager,
     onNavigateToDetails: (String) -> Unit,
     globalLeadDays: Int = 2,
     onNavigateToGroup: (GroupingMode, String) -> Unit = { _, _ -> },
     onNavigateToSettings: () -> Unit = {}
 ) {
     val entries by repository.getAllEntries().collectAsState(initial = emptyList())
-    val locations by repository.getStorageLocations().collectAsState(initial = emptyList())
+    val activeLocationId by settingsManager.activeLocationId.collectAsState(initial = null)
+    val locations by repository.getStorageLocations(activeLocationId).collectAsState(initial = emptyList())
+    val allLocations by repository.getStorageLocations(null).collectAsState(initial = emptyList())
     val categories by repository.getCategories().collectAsState(initial = emptyList())
+    val expiringEntries by repository.getExpiringEntries(Instant.now()).collectAsState(initial = emptyList())
     
     var showAddDialog by remember { mutableStateOf(false) }
+    var showExpiringDialog by remember { mutableStateOf(false) }
     var showAddLocationDialog by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     
@@ -77,7 +87,16 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                navigationIcon = { },
+                navigationIcon = {
+                    if (activeLocationId != null) {
+                        IconButton(onClick = {
+                            val parentId = allLocations.find { it.id == activeLocationId }?.parentId
+                            scope.launch { settingsManager.setActiveLocationId(parentId) }
+                        }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    }
+                },
                 title = {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -94,6 +113,24 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showExpiringDialog = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (expiringEntries.isNotEmpty()) {
+                                    Badge {
+                                        Text(expiringEntries.size.toString())
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.Notifications,
+                                contentDescription = stringResource(R.string.nav_notifications),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+
                     var expandedMenu by remember { mutableStateOf(false) }
                     IconButton(onClick = { expandedMenu = true }) {
                         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.nav_more_options), tint = MaterialTheme.colorScheme.onPrimary)
@@ -151,6 +188,38 @@ fun DashboardScreen(
                 singleLine = true
             )
 
+            // Breadcrumbs / Location Context
+            if (activeLocationId != null) {
+                val path = mutableListOf<StorageLocation>()
+                var currId: String? = activeLocationId
+                while (currId != null) {
+                    val loc = allLocations.find { it.id == currId }
+                    if (loc != null) {
+                        path.add(0, loc)
+                        currId = loc.parentId
+                    } else break
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "🏠", 
+                        modifier = Modifier.clickable { scope.launch { settingsManager.setActiveLocationId(null) } }
+                    )
+                    path.forEach { loc ->
+                        Text(" > ", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = loc.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (loc.id == activeLocationId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.clickable { scope.launch { settingsManager.setActiveLocationId(loc.id) } }
+                        )
+                    }
+                }
+            }
+
             // Grouping Toggle
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -194,7 +263,13 @@ fun DashboardScreen(
                 // Show grid of groups
                 val groupItems = if (groupingMode == GroupingMode.LOCATION) {
                     locations.map { loc -> 
-                        val count = entries.count { it.storageLocationId == loc.id }
+                        // Recursive count helper
+                        fun getDescendantIds(id: String): List<String> {
+                            val children = allLocations.filter { it.parentId == id }
+                            return children.map { it.id } + children.flatMap { getDescendantIds(it.id) }
+                        }
+                        val allIds = listOf(loc.id) + getDescendantIds(loc.id)
+                        val count = entries.count { it.storageLocationId in allIds }
                         loc to count
                     }
                 } else {
@@ -232,7 +307,13 @@ fun DashboardScreen(
                                 .fillMaxWidth()
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .clickable { onNavigateToGroup(groupingMode, id) },
+                                .clickable { 
+                                    if (item is StorageLocation) {
+                                        scope.launch { settingsManager.setActiveLocationId(item.id) }
+                                    } else {
+                                        onNavigateToGroup(groupingMode, id)
+                                    }
+                                },
                             colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
@@ -277,6 +358,28 @@ fun DashboardScreen(
                             }
                         }
                     }
+                    
+                    // If we are in a location, show items directly in this location at the bottom of the grid
+                    if (groupingMode == GroupingMode.LOCATION && activeLocationId != null) {
+                        val localItems = entries.filter { it.storageLocationId == activeLocationId }
+                        if (localItems.isNotEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Text(
+                                    stringResource(R.string.inventory_items_header), 
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                                )
+                            }
+                            items(localItems, key = { "item_${it.id}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
+                                InventoryItemCard(
+                                    entry = entry,
+                                    onUpdate = { scope.launch { repository.updateEntry(it) } },
+                                    onDelete = { scope.launch { repository.removeEntry(entry.id) } },
+                                    onDetailsClick = { onNavigateToDetails(entry.id) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -285,10 +388,11 @@ fun DashboardScreen(
     if (showAddDialog) {
         AddItemScreen(
             repository = repository,
-            locations = locations,
+            locations = allLocations,
             categories = categories,
             existingEntries = entries,
             globalLeadDays = globalLeadDays,
+            defaultLocationId = activeLocationId,
             onDismiss = { showAddDialog = false },
             onSave = { newOrModifiedEntry, isMerge ->
                 scope.launch { 
@@ -297,6 +401,15 @@ fun DashboardScreen(
                 }
                 showAddDialog = false
             }
+        )
+    }
+
+    if (showExpiringDialog) {
+        ExpiringItemsDialog(
+            entries = expiringEntries,
+            repository = repository,
+            onDismiss = { showExpiringDialog = false },
+            onNavigateToDetails = onNavigateToDetails
         )
     }
 
@@ -323,6 +436,8 @@ fun DashboardScreen(
         val initialLocation = editingLocation
         AddLocationDialog(
             initialLocation = initialLocation,
+            allLocations = allLocations,
+            suggestedParentId = activeLocationId,
             onDismiss = { 
                 showAddLocationDialog = false
                 editingLocation = null
@@ -430,14 +545,19 @@ fun AddCategoryDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddLocationDialog(
     initialLocation: StorageLocation? = null,
+    allLocations: List<StorageLocation>,
+    suggestedParentId: String? = null,
     onDismiss: () -> Unit, 
     onSave: (StorageLocation) -> Unit
 ) {
     var name by remember { mutableStateOf(initialLocation?.name ?: "") }
     var icon by remember { mutableStateOf(initialLocation?.icon ?: "📦") }
+    var parentId by remember { mutableStateOf(initialLocation?.parentId ?: suggestedParentId) }
+    var expandedParentPicker by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -457,12 +577,50 @@ fun AddLocationDialog(
                     label = { Text(stringResource(R.string.hint_icon_emoji)) },
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(8.dp))
+                
+                // Parent Selection
+                ExposedDropdownMenuBox(
+                    expanded = expandedParentPicker,
+                    onExpandedChange = { expandedParentPicker = !expandedParentPicker }
+                ) {
+                    val parentName = allLocations.find { it.id == parentId }?.name ?: stringResource(R.string.location_none_root)
+                    OutlinedTextField(
+                        value = parentName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.hint_parent_location)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedParentPicker) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedParentPicker,
+                        onDismissRequest = { expandedParentPicker = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.location_none_root)) },
+                            onClick = {
+                                parentId = null
+                                expandedParentPicker = false
+                            }
+                        )
+                        allLocations.filter { it.id != initialLocation?.id }.forEach { loc ->
+                            DropdownMenuItem(
+                                text = { Text(loc.name) },
+                                onClick = {
+                                    parentId = loc.id
+                                    expandedParentPicker = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(onClick = {
-                onSave(initialLocation?.copy(name = name.ifBlank { "New Space" }, icon = icon)
-                    ?: StorageLocation(name = name.ifBlank { "New Space" }, icon = icon))
+                onSave(initialLocation?.copy(name = name.ifBlank { "New Space" }, icon = icon, parentId = parentId)
+                    ?: StorageLocation(name = name.ifBlank { "New Space" }, icon = icon, parentId = parentId))
             }) {
                 Text(stringResource(R.string.action_save))
             }

@@ -26,7 +26,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.stashapp.android.data.SettingsManager
 import com.stashapp.android.ui.screens.DashboardScreen
 import com.stashapp.android.ui.screens.ExpiringItemsScreen
@@ -35,17 +34,20 @@ import com.stashapp.android.ui.screens.ItemDetailScreen
 import com.stashapp.android.ui.screens.SettingsScreen
 import com.stashapp.android.ui.theme.StashAppTheme
 import com.stashapp.shared.data.SqlDelightInventoryRepository
-import com.stashapp.shared.db.StashDatabase
 import com.stashapp.shared.domain.Category
 import com.stashapp.shared.domain.StorageLocation
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.stashapp.android.worker.CatalogImportWorker
 import com.stashapp.android.worker.DailyExpiryWorker
 import com.stashapp.shared.util.IngestCatalog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -57,9 +59,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val driver = AndroidSqliteDriver(StashDatabase.Schema, applicationContext, "stashapp.db")
-        val database = StashDatabase(driver)
-        repository = SqlDelightInventoryRepository(database)
+        val app = application as StashApp
+        repository = app.repository
         settingsManager = SettingsManager(applicationContext)
 
         lifecycleScope.launch {
@@ -80,42 +81,36 @@ class MainActivity : ComponentActivity() {
         setContent {
             StashAppTheme {
                 val isCatalogImported by settingsManager.isCatalogImported.collectAsState(initial = true)
-                var isImporting by remember { mutableStateOf(false) }
                 var ingestionProgress by remember { mutableStateOf(0f) }
+
+                // Observe Background Import Progress
+                val workManager = WorkManager.getInstance(applicationContext)
+                val importWorkInfo by workManager.getWorkInfosForUniqueWorkLiveData("catalog_import")
+                    .observeAsState(initial = emptyList())
+                
+                val currentImport = importWorkInfo.firstOrNull()
+                val isWorkerRunning = currentImport?.state == WorkInfo.State.RUNNING || currentImport?.state == WorkInfo.State.ENQUEUED
+                val workerProgress = currentImport?.progress?.getFloat("progress", 0f) ?: 0f
 
                 LaunchedEffect(isCatalogImported) {
                     if (!isCatalogImported) {
-                        isImporting = true
-                        withContext(Dispatchers.IO) {
-                            try {
-                                // Android's openFd can't open compressed assets. 
-                                // We use a hardcoded total size (2,985,757 bytes) for the slim version.
-                                val totalBytes = 2985757L
-                                val inputStream = assets.open("dutch_catalog.tsv")
-                                
-                                IngestCatalog(repository).ingestFromStream(
-                                    inputStream = inputStream,
-                                    totalBytes = totalBytes,
-                                    minColumns = 19,
-                                    onProgress = { progress ->
-                                        ingestionProgress = progress
-                                    }
-                                )
-                                settingsManager.setCatalogImported(true)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                isImporting = false
-                            }
-                        }
+                        val request = OneTimeWorkRequestBuilder<CatalogImportWorker>()
+                            .addTag("catalog_import")
+                            .build()
+                        workManager.enqueueUniqueWork("catalog_import", androidx.work.ExistingWorkPolicy.KEEP, request)
                     }
+                }
+
+                // Smoothly update progress
+                LaunchedEffect(workerProgress) {
+                    ingestionProgress = workerProgress
                 }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    if (isImporting) {
+                    if (isWorkerRunning) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Image(
@@ -144,68 +139,69 @@ class MainActivity : ComponentActivity() {
                         }
 
                         NavHost(navController = navController, startDestination = "dashboard") {
-                        composable("dashboard") {
-                            DashboardScreen(
-                                repository = repository,
-                                globalLeadDays = globalLeadDays,
-                                onNavigateToDetails = { itemId ->
-                                    navController.navigate("details/$itemId")
-                                },
-                                onNavigateToGroup = { type, id ->
-                                    navController.navigate("group/${type.name}/$id")
-                                },
-                                onNavigateToSettings = {
-                                    navController.navigate("settings")
-                                }
-                            )
-                        }
-                        composable("settings") {
-                            SettingsScreen(
-                                settingsManager = settingsManager,
-                                repository = repository,
-                                onNavigateBack = { navController.popBackStack() }
-                            )
-                        }
-                        composable("group/{type}/{groupId}") { backStackEntry ->
-                            val type = backStackEntry.arguments?.getString("type") ?: ""
-                            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
-                            GroupListScreen(
-                                repository = repository,
-                                groupType = type,
-                                groupId = groupId,
-                                onNavigateBack = { navController.popBackStack() },
-                                onNavigateToDetails = { itemId ->
-                                    navController.navigate("details/$itemId")
-                                }
-                            )
-                        }
-                        composable("details/{itemId}") { backStackEntry ->
-                            val itemId = backStackEntry.arguments?.getString("itemId")
-                            ItemDetailScreen(
-                                repository = repository,
-                                itemId = itemId,
-                                globalLeadDays = globalLeadDays,
-                                onNavigateBack = { navController.popBackStack() },
-                                onNavigateToGroup = { type, id ->
-                                    navController.navigate("group/$type/$id")
-                                }
-                            )
-                        }
-                        composable("expiring_soon") {
-                            ExpiringItemsScreen(
-                                repository = repository,
-                                onNavigateBack = { navController.popBackStack() },
-                                onNavigateToDetails = { itemId ->
-                                    navController.navigate("details/$itemId")
-                                }
-                            )
+                            composable("dashboard") {
+                                DashboardScreen(
+                                    repository = repository,
+                                    settingsManager = settingsManager,
+                                    globalLeadDays = globalLeadDays,
+                                    onNavigateToDetails = { itemId ->
+                                        navController.navigate("details/$itemId")
+                                    },
+                                    onNavigateToGroup = { type, id ->
+                                        navController.navigate("group/${type.name}/$id")
+                                    },
+                                    onNavigateToSettings = {
+                                        navController.navigate("settings")
+                                    }
+                                )
+                            }
+                            composable("settings") {
+                                SettingsScreen(
+                                    settingsManager = settingsManager,
+                                    repository = repository,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("group/{type}/{groupId}") { backStackEntry ->
+                                val type = backStackEntry.arguments?.getString("type") ?: ""
+                                val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+                                GroupListScreen(
+                                    repository = repository,
+                                    groupType = type,
+                                    groupId = groupId,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToDetails = { itemId ->
+                                        navController.navigate("details/$itemId")
+                                    }
+                                )
+                            }
+                            composable("details/{itemId}") { backStackEntry ->
+                                val itemId = backStackEntry.arguments?.getString("itemId")
+                                ItemDetailScreen(
+                                    repository = repository,
+                                    itemId = itemId,
+                                    globalLeadDays = globalLeadDays,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToGroup = { type, id ->
+                                        navController.navigate("group/$type/$id")
+                                    }
+                                )
+                            }
+                            composable("expiring_soon") {
+                                ExpiringItemsScreen(
+                                    repository = repository,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToDetails = { itemId ->
+                                        navController.navigate("details/$itemId")
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 
     private fun scheduleDailyExpiryWorker() {
         val request = PeriodicWorkRequestBuilder<DailyExpiryWorker>(1, TimeUnit.DAYS)

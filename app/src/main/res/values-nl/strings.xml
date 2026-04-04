@@ -106,5 +106,13 @@
     <string name="notification_summary_single">1 item verloopt binnenkort: %1$s</string>
     <string name="notification_summary_multiple">%1$d items verlopen binnenkort: %2$s</string>
     <string name="notification_channel_name">Vervalalarmen</string>
-    <string name="notification_channel_description">Meldingen voor items die bijna verlopen.</string>
+    <string name="notification_channel_description">Meldingen voor artikelen die bijna over de datum zijn.</string>
+
+    <string name="dialog_expiring_items_title">Binnenkort over datum</string>
+    <string name="nav_notifications">Meldingen</string>
+    <string name="action_dismiss">Negeren</string>
+    <string name="notification_dismiss">Negeren</string>
+    <string name="inventory_items_header">Artikelen op deze plek</string>
+    <string name="location_none_root">Geen (Hoofdniveau / Huis)</string>
+    <string name="hint_parent_location">Hoofdlocatie</string>
 </resources>

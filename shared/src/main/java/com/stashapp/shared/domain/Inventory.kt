@@ -45,7 +45,8 @@ data class ExpirationDate(
 data class StorageLocation(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val icon: String = ""
+    val icon: String = "",
+    val parentId: String? = null
 )
 
 data class Category(
@@ -97,11 +98,12 @@ data class CatalogProduct(
 
 interface InventoryRepository {
     fun getAllEntries(): Flow<List<InventoryEntry>>
+    fun getExpiringEntries(now: Instant): Flow<List<InventoryEntry>>
     suspend fun getEntryById(id: String): InventoryEntry?
     suspend fun addEntry(entry: InventoryEntry)
     suspend fun updateEntry(entry: InventoryEntry)
     suspend fun removeEntry(id: String)
-    fun getStorageLocations(): Flow<List<StorageLocation>>
+    fun getStorageLocations(parentId: String? = null): Flow<List<StorageLocation>>
     suspend fun addStorageLocation(location: StorageLocation)
     suspend fun updateStorageLocation(location: StorageLocation)
     suspend fun removeStorageLocation(id: String)

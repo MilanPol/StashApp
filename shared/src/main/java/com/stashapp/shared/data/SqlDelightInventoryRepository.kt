@@ -22,18 +22,23 @@ class SqlDelightInventoryRepository(
     private val entryQueries = db.inventoryEntryQueries
     private val catalogQueries = db.catalogProductQueries
 
-    override fun getStorageLocations(): Flow<List<StorageLocation>> {
-        return locationQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
-            list.map { StorageLocation(it.id, it.name, it.icon) }
+    override fun getStorageLocations(parentId: String?): Flow<List<StorageLocation>> {
+        val flow = if (parentId == null) {
+            locationQueries.selectTopLevel()
+        } else {
+            locationQueries.selectByParent(parentId)
+        }
+        return flow.asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { StorageLocation(it.id, it.name, it.icon, it.parent_id) }
         }
     }
 
     override suspend fun addStorageLocation(location: StorageLocation) {
-        locationQueries.insert(location.id, location.name, location.icon)
+        locationQueries.insert(location.id, location.name, location.icon, location.parentId)
     }
 
     override suspend fun updateStorageLocation(location: StorageLocation) {
-        locationQueries.update(location.name, location.icon, location.id)
+        locationQueries.update(location.name, location.icon, location.parentId, location.id)
     }
 
     override suspend fun removeStorageLocation(id: String) {
@@ -60,6 +65,21 @@ class SqlDelightInventoryRepository(
 
     override fun getAllEntries(): Flow<List<InventoryEntry>> {
         return entryQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { mapToDomain(it) }
+        }
+    }
+
+    override fun getExpiringEntries(now: Instant): Flow<List<InventoryEntry>> {
+        return entryQueries.selectExpiring(
+            now = now.toEpochMilli(),
+            mapper = { id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at, alert_at ->
+                com.stashapp.shared.db.Inventory_entry(
+                    id, name, quantity_amount, quantity_unit, expiration_date,
+                    shelf_life_sealed_seconds, shelf_life_opened_seconds,
+                    storage_location_id, category_id, opened_at, created_at, updated_at, alert_at
+                )
+            }
+        ).asFlow().mapToList(Dispatchers.IO).map { list ->
             list.map { mapToDomain(it) }
         }
     }

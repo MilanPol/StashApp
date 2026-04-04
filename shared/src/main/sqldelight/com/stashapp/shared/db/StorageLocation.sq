@@ -1,17 +1,27 @@
 CREATE TABLE storage_location (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
-    icon TEXT NOT NULL DEFAULT ''
+    icon TEXT NOT NULL DEFAULT '',
+    parent_id TEXT -- Recursive hierarchy link
 );
 
 selectAll:
 SELECT * FROM storage_location ORDER BY name;
 
+selectByParent:
+SELECT * FROM storage_location WHERE parent_id = ? ORDER BY name;
+
+selectTopLevel:
+SELECT * FROM storage_location WHERE parent_id IS NULL ORDER BY name;
+
+selectById:
+SELECT * FROM storage_location WHERE id = ?;
+
 insert:
-INSERT OR REPLACE INTO storage_location(id, name, icon) VALUES (?, ?, ?);
+INSERT OR REPLACE INTO storage_location(id, name, icon, parent_id) VALUES (?, ?, ?, ?);
 
 update:
-UPDATE storage_location SET name = ?, icon = ? WHERE id = ?;
+UPDATE storage_location SET name = ?, icon = ?, parent_id = ? WHERE id = ?;
 
 deleteById:
 DELETE FROM storage_location WHERE id = ?;

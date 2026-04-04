@@ -14,19 +14,20 @@ class DailyExpiryWorker(appContext: Context, workerParams: WorkerParameters) :
     CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        val driver = AndroidSqliteDriver(StashDatabase.Schema, applicationContext, "stashapp.db")
-        val database = StashDatabase(driver)
-        val repository = SqlDelightInventoryRepository(database)
+        val app = applicationContext as com.stashapp.android.StashApp
+        
+        // Skip if we are currently doing a heavy import to avoid ANR/contention
+        if (app.isImporting) {
+            return Result.retry()
+        }
+
+        val repository = app.repository
         val notificationHelper = NotificationHelper(applicationContext)
 
-        // Get all items where alert_at is today or in the past
-        val allEntries = repository.getAllEntries().first()
+        // Get only items where alert_at is today or in the past
         val now = Instant.now()
-        
-        val expiringItems = allEntries.filter { entry ->
-            val alertAt = entry.alertAt
-            alertAt != null && alertAt.isBefore(now)
-        }.map { it.name }
+        val entries = repository.getExpiringEntries(now).first()
+        val expiringItems = entries.map { it.name }
 
         if (expiringItems.isNotEmpty()) {
             notificationHelper.showExpirationSummary(expiringItems)

@@ -1,0 +1,1 @@
+ALTER TABLE storage_location ADD COLUMN parent_id TEXT;

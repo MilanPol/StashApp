@@ -30,3 +30,8 @@ DELETE FROM inventory_entry WHERE id = ?;
 
 updateQuantity:
 UPDATE inventory_entry SET quantity_amount = ?, updated_at = ? WHERE id = ?;
+
+selectExpiring:
+SELECT * FROM inventory_entry 
+WHERE alert_at IS NOT NULL AND alert_at <= :now
+ORDER BY alert_at ASC;

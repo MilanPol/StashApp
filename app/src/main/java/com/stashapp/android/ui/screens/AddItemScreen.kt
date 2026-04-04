@@ -56,6 +56,7 @@ fun AddItemScreen(
     preSelectedLocationId: String? = null,
     preSelectedCategoryId: String? = null,
     globalLeadDays: Int = 2,
+    defaultLocationId: String? = null,
     onDismiss: () -> Unit,
     onSave: (InventoryEntry, Boolean) -> Unit
 ) {
@@ -140,7 +141,7 @@ fun AddItemScreen(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.fillMaxHeight(0.9f),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         confirmButton = {
             if (mode != AddMode.UNDEFINED) {
                 Button(
