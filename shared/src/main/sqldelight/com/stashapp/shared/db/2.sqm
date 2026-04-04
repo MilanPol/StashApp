@@ -1,0 +1,14 @@
+CREATE TABLE catalog_product (
+    ean TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT,
+    default_quantity_amount TEXT,
+    default_quantity_unit TEXT
+);
+
+CREATE TABLE inventory_product_mapping (
+    inventory_id TEXT NOT NULL PRIMARY KEY,
+    ean TEXT NOT NULL,
+    FOREIGN KEY (inventory_id) REFERENCES inventory_entry(id) ON DELETE CASCADE,
+    FOREIGN KEY (ean) REFERENCES catalog_product(ean)
+);

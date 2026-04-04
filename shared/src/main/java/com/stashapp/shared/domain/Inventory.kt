@@ -9,7 +9,7 @@ import java.math.BigDecimal
 import java.time.temporal.ChronoUnit
 
 enum class MeasurementUnit {
-    LITERS, MILLILITERS, KILOGRAMS, GRAMS, PIECES
+    LITERS, MILLILITERS, CENTILITERS, KILOGRAMS, GRAMS, MILLIGRAMS, OUNCES, PIECES
 }
 
 data class Quantity(
@@ -88,6 +88,13 @@ data class InventoryEntry(
     val isOpen: Boolean get() = openedAt != null
 }
 
+data class CatalogProduct(
+    val ean: String,
+    val name: String,
+    val brand: String? = null,
+    val defaultQuantity: Quantity? = null
+)
+
 interface InventoryRepository {
     fun getAllEntries(): Flow<List<InventoryEntry>>
     suspend fun getEntryById(id: String): InventoryEntry?
@@ -102,4 +109,12 @@ interface InventoryRepository {
     suspend fun addCategory(category: Category)
     suspend fun updateCategory(category: Category)
     suspend fun removeCategory(id: String)
+    
+    // Product Catalog
+    fun getProductByEan(ean: String): Flow<CatalogProduct?>
+    fun searchCatalog(query: String): Flow<List<CatalogProduct>>
+    suspend fun upsertCatalogProduct(product: CatalogProduct)
+    suspend fun bulkUpsertCatalogProducts(products: List<CatalogProduct>)
+    suspend fun linkEntryToProduct(entryId: String, ean: String)
+    suspend fun getLinkedEan(entryId: String): String?
 }

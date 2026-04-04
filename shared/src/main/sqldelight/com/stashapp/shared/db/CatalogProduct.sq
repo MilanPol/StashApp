@@ -1,0 +1,41 @@
+CREATE TABLE catalog_product (
+    ean TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT,
+    default_quantity_amount TEXT,
+    default_quantity_unit TEXT
+);
+
+CREATE INDEX idx_catalog_name ON catalog_product(name);
+CREATE INDEX idx_catalog_brand ON catalog_product(brand);
+
+CREATE TABLE inventory_product_mapping (
+    inventory_id TEXT NOT NULL PRIMARY KEY,
+    ean TEXT NOT NULL,
+    FOREIGN KEY (inventory_id) REFERENCES inventory_entry(id) ON DELETE CASCADE,
+    FOREIGN KEY (ean) REFERENCES catalog_product(ean)
+);
+
+selectProductByEan:
+SELECT * FROM catalog_product WHERE ean = ?;
+
+upsertProduct:
+INSERT OR REPLACE INTO catalog_product (ean, name, brand, default_quantity_amount, default_quantity_unit)
+VALUES (?, ?, ?, ?, ?);
+
+insertMapping:
+INSERT OR REPLACE INTO inventory_product_mapping (inventory_id, ean)
+VALUES (?, ?);
+
+selectMappingByInventoryId:
+SELECT * FROM inventory_product_mapping WHERE inventory_id = ?;
+
+deleteMappingByInventoryId:
+DELETE FROM inventory_product_mapping WHERE inventory_id = ?;
+
+searchProducts:
+SELECT * FROM catalog_product 
+WHERE LOWER(name) LIKE ('%' || LOWER(:query) || '%') 
+OR LOWER(brand) LIKE ('%' || LOWER(:query) || '%')
+OR ean = :query 
+LIMIT 20;

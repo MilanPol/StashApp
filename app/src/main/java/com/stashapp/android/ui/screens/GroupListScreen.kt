@@ -109,6 +109,7 @@ fun GroupListScreen(
 
     if (showAddDialog) {
         AddItemScreen(
+            repository = repository,
             locations = locations,
             categories = categories,
             existingEntries = entries,

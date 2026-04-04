@@ -11,8 +11,11 @@ fun MeasurementUnit.translated(): String {
         when (this) {
             MeasurementUnit.LITERS -> R.string.unit_liters
             MeasurementUnit.MILLILITERS -> R.string.unit_milliliters
+            MeasurementUnit.CENTILITERS -> R.string.unit_centiliters
             MeasurementUnit.KILOGRAMS -> R.string.unit_kilograms
             MeasurementUnit.GRAMS -> R.string.unit_grams
+            MeasurementUnit.MILLIGRAMS -> R.string.unit_milligrams
+            MeasurementUnit.OUNCES -> R.string.unit_ounces
             MeasurementUnit.PIECES -> R.string.unit_pieces
         }
     )

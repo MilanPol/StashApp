@@ -17,8 +17,11 @@
     <!-- Units -->
     <string name="unit_liters">Liters</string>
     <string name="unit_milliliters">Milliliters</string>
+    <string name="unit_centiliters">Centiliters</string>
     <string name="unit_kilograms">Kilograms</string>
     <string name="unit_grams">Grams</string>
+    <string name="unit_milligrams">Milligrams</string>
+    <string name="unit_ounces">Ounces</string>
     <string name="unit_pieces">Pieces</string>
 
     <!-- Item Card -->
@@ -60,6 +63,10 @@
     <!-- Add Item Screen -->
     <string name="dialog_add_item_title">Add Inventory Item</string>
     <string name="dialog_merge_item_title">Merge Inventory Item</string>
+    <string name="dialog_add_item_choice_title">How would you like to add this item?</string>
+    <string name="action_scan_barcode">Scan Barcode</string>
+    <string name="action_add_manually">Add Manually</string>
+    <string name="hint_scan_barcode">Point at a barcode to scan</string>
     <string name="label_item_name">Item Name</string>
     <string name="label_amount_to_add">Amount to Add</string>
     <string name="label_storage_location">Storage Location</string>

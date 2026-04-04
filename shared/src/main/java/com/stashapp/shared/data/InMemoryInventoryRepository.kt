@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import com.stashapp.shared.domain.CatalogProduct
 
 class InMemoryInventoryRepository : InventoryRepository {
     private val _locations = MutableStateFlow<List<StorageLocation>>(listOf(
@@ -82,5 +84,39 @@ class InMemoryInventoryRepository : InventoryRepository {
         _categories.update { list ->
             list.filterNot { it.id == id }
         }
+    }
+
+    // Catalog Implementation
+    private val _catalog = MutableStateFlow<Map<String, CatalogProduct>>(emptyMap())
+    private val _mappings = MutableStateFlow<Map<String, String>>(emptyMap())
+
+    override fun getProductByEan(ean: String): Flow<CatalogProduct?> {
+        return _catalog.map { it[ean] }
+    }
+
+    override fun searchCatalog(query: String): Flow<List<CatalogProduct>> {
+        return _catalog.map { catalog ->
+            catalog.values.filter { 
+                it.name.contains(query, ignoreCase = true) || 
+                it.brand?.contains(query, ignoreCase = true) == true ||
+                it.ean == query
+            }.take(20)
+        }
+    }
+
+    override suspend fun upsertCatalogProduct(product: CatalogProduct) {
+        _catalog.update { it + (product.ean to product) }
+    }
+
+    override suspend fun bulkUpsertCatalogProducts(products: List<CatalogProduct>) {
+        _catalog.update { it + products.associateBy { p -> p.ean } }
+    }
+
+    override suspend fun linkEntryToProduct(entryId: String, ean: String) {
+        _mappings.update { it + (entryId to ean) }
+    }
+
+    override suspend fun getLinkedEan(entryId: String): String? {
+        return _mappings.value[entryId]
     }
 }

@@ -2,6 +2,7 @@ package com.stashapp.shared.data
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.stashapp.shared.db.StashDatabase
 import com.stashapp.shared.domain.*
 import kotlinx.coroutines.Dispatchers
@@ -13,12 +14,13 @@ import java.time.Instant
 import java.time.LocalDate
 
 class SqlDelightInventoryRepository(
-    db: StashDatabase
+    private val db: StashDatabase
 ) : InventoryRepository {
 
     private val locationQueries = db.storageLocationQueries
     private val categoryQueries = db.categoryQueries
     private val entryQueries = db.inventoryEntryQueries
+    private val catalogQueries = db.catalogProductQueries
 
     override fun getStorageLocations(): Flow<List<StorageLocation>> {
         return locationQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
@@ -120,5 +122,60 @@ class SqlDelightInventoryRepository(
             createdAt = Instant.ofEpochMilli(row.created_at),
             updatedAt = Instant.ofEpochMilli(row.updated_at)
         )
+    }
+
+    override fun getProductByEan(ean: String): Flow<CatalogProduct?> {
+        return catalogQueries.selectProductByEan(ean).asFlow().mapToOneOrNull(Dispatchers.IO).map { row ->
+            row?.let { mapToCatalogDomain(it) }
+        }
+    }
+
+    override fun searchCatalog(query: String): Flow<List<CatalogProduct>> {
+        return catalogQueries.searchProducts(query).asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { mapToCatalogDomain(it) }
+        }
+    }
+
+    private fun mapToCatalogDomain(row: com.stashapp.shared.db.Catalog_product): CatalogProduct {
+        return CatalogProduct(
+            ean = row.ean,
+            name = row.name,
+            brand = row.brand,
+            defaultQuantity = if (row.default_quantity_amount != null && row.default_quantity_unit != null) {
+                Quantity(BigDecimal(row.default_quantity_amount), MeasurementUnit.valueOf(row.default_quantity_unit))
+            } else null
+        )
+    }
+
+    override suspend fun upsertCatalogProduct(product: CatalogProduct) {
+        catalogQueries.upsertProduct(
+            ean = product.ean,
+            name = product.name,
+            brand = product.brand,
+            default_quantity_amount = product.defaultQuantity?.amount?.toPlainString(),
+            default_quantity_unit = product.defaultQuantity?.unit?.name
+        )
+    }
+
+    override suspend fun bulkUpsertCatalogProducts(products: List<CatalogProduct>) {
+        db.transaction {
+            products.forEach { product ->
+                catalogQueries.upsertProduct(
+                    ean = product.ean,
+                    name = product.name,
+                    brand = product.brand,
+                    default_quantity_amount = product.defaultQuantity?.amount?.toPlainString(),
+                    default_quantity_unit = product.defaultQuantity?.unit?.name
+                )
+            }
+        }
+    }
+
+    override suspend fun linkEntryToProduct(entryId: String, ean: String) {
+        catalogQueries.insertMapping(entryId, ean)
+    }
+
+    override suspend fun getLinkedEan(entryId: String): String? {
+        return catalogQueries.selectMappingByInventoryId(entryId).executeAsOneOrNull()?.ean
     }
 }

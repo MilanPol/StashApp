@@ -11,9 +11,21 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.stashapp.android.data.SettingsManager
 import com.stashapp.android.ui.screens.DashboardScreen
@@ -30,9 +42,13 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.stashapp.android.worker.DailyExpiryWorker
+import com.stashapp.shared.util.IngestCatalog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
+import androidx.compose.ui.Alignment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private lateinit var repository: SqlDelightInventoryRepository
@@ -60,24 +76,74 @@ class MainActivity : ComponentActivity() {
         }
 
         scheduleDailyExpiryWorker()
-        
+
         setContent {
             StashAppTheme {
+                val isCatalogImported by settingsManager.isCatalogImported.collectAsState(initial = true)
+                var isImporting by remember { mutableStateOf(false) }
+                var ingestionProgress by remember { mutableStateOf(0f) }
+
+                LaunchedEffect(isCatalogImported) {
+                    if (!isCatalogImported) {
+                        isImporting = true
+                        withContext(Dispatchers.IO) {
+                            try {
+                                // Android's openFd can't open compressed assets. 
+                                // We use a hardcoded total size (2,985,757 bytes) for the slim version.
+                                val totalBytes = 2985757L
+                                val inputStream = assets.open("dutch_catalog.tsv")
+                                
+                                IngestCatalog(repository).ingestFromStream(
+                                    inputStream = inputStream,
+                                    totalBytes = totalBytes,
+                                    minColumns = 19,
+                                    onProgress = { progress ->
+                                        ingestionProgress = progress
+                                    }
+                                )
+                                settingsManager.setCatalogImported(true)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            } finally {
+                                isImporting = false
+                            }
+                        }
+                    }
+                }
+
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    val globalLeadDays by settingsManager.globalLeadDays.collectAsState(initial = 2)
-                    
-                    val intentScreen = intent.getStringExtra("SCREEN")
-                    LaunchedEffect(intentScreen) {
-                        if (intentScreen == "expiring_soon") {
-                            navController.navigate("expiring_soon")
+                    if (isImporting) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.logo_hamster),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(120.dp).clip(CircleShape)
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                CircularProgressIndicator(progress = ingestionProgress)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Loading Product Catalog... ${(ingestionProgress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
-                    }
+                    } else {
+                        val navController = rememberNavController()
+                        val globalLeadDays by settingsManager.globalLeadDays.collectAsState(initial = 2)
 
-                    NavHost(navController = navController, startDestination = "dashboard") {
+                        val intentScreen = intent.getStringExtra("SCREEN")
+                        LaunchedEffect(intentScreen) {
+                            if (intentScreen == "expiring_soon") {
+                                navController.navigate("expiring_soon")
+                            }
+                        }
+
+                        NavHost(navController = navController, startDestination = "dashboard") {
                         composable("dashboard") {
                             DashboardScreen(
                                 repository = repository,
@@ -139,6 +205,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 
     private fun scheduleDailyExpiryWorker() {
         val request = PeriodicWorkRequestBuilder<DailyExpiryWorker>(1, TimeUnit.DAYS)

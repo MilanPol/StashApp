@@ -144,6 +144,7 @@ fun ItemDetailScreen(
 
     if (showEditDialog && entry != null) {
         AddItemScreen(
+            repository = repository,
             locations = locations,
             categories = categories,
             existingEntries = allEntries,

@@ -60,7 +60,11 @@
     <!-- Add Item Screen -->
     <string name="dialog_add_item_title">Item toevoegen</string>
     <string name="dialog_merge_item_title">Item samenvoegen</string>
-    <string name="label_item_name">Itemnaam</string>
+    <string name="dialog_add_item_choice_title">Hoe wil je dit item toevoegen?</string>
+    <string name="action_scan_barcode">Barcode scannen</string>
+    <string name="action_add_manually">Handmatig toevoegen</string>
+    <string name="hint_scan_barcode">Richt op een barcode om te scannen</string>
+    <string name="label_item_name">Item naam</string>
     <string name="label_amount_to_add">Toe te voegen hoeveelheid</string>
     <string name="label_storage_location">Opslaglocatie</string>
     <string name="label_select_location">Locatie kiezen</string>
