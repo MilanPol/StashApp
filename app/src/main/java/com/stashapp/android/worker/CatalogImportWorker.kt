@@ -23,8 +23,8 @@ class CatalogImportWorker(appContext: Context, params: WorkerParameters) :
                 // Shared flag to let other parts of the app know we are busy
                 app.isImporting = true
                 
-                // Total bytes for progress calculation (Dutch filtered slim TSV)
-                val totalBytes = 2985757L
+                // Total bytes for progress calculation (Expanded European/Dutch Catalog: ~80k items)
+                val totalBytes = 3620864L
                 val inputStream = applicationContext.assets.open("dutch_catalog.tsv")
                 
                 IngestCatalog(repository).ingestFromStream(
