@@ -5,19 +5,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.translated
-import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -26,26 +24,20 @@ import java.time.format.FormatStyle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemDetailScreen(
-    repository: InventoryRepository,
-    itemId: String?,
+    viewModel: ItemDetailViewModel,
     globalLeadDays: Int = 2,
     onNavigateBack: () -> Unit,
     onNavigateToGroup: (type: String, id: String) -> Unit = { _, _ -> }
 ) {
-    var entry by remember { mutableStateOf<InventoryEntry?>(null) }
-    val allEntries by repository.getAllEntries().collectAsState(initial = emptyList())
-    val categories by repository.getCategories().collectAsState(initial = emptyList())
-    val locations by repository.getStorageLocations().collectAsState(initial = emptyList())
+    val entry by viewModel.entry.collectAsState()
+    val allEntries by viewModel.allEntries.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    val locations by viewModel.locations.collectAsState()
 
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    var showConsumeDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(itemId, allEntries) {
-        if (itemId != null) {
-            entry = allEntries.find { it.id == itemId }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -138,13 +130,35 @@ fun ItemDetailScreen(
                         DetailRow(stringResource(R.string.label_category), "${cat.icon} ${cat.name}")
                     }
                 }
+
+                Spacer(modifier = Modifier.weight(1f))
+                
+                // Primary Actions Row
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Button(
+                        onClick = { showConsumeDialog = true },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                    ) {
+                        Text(stringResource(R.string.action_consume), style = MaterialTheme.typography.titleMedium)
+                    }
+                }
             }
         }
     }
 
     if (showEditDialog && entry != null) {
         AddItemScreen(
-            repository = repository,
+            entryRepository = viewModel.entryRepo,
+            catalogRepository = viewModel.catalogRepo,
             locations = locations,
             categories = categories,
             existingEntries = allEntries,
@@ -152,7 +166,7 @@ fun ItemDetailScreen(
             globalLeadDays = globalLeadDays,
             onDismiss = { showEditDialog = false },
             onSave = { modifiedEntry, _ ->
-                scope.launch { repository.updateEntry(modifiedEntry) }
+                viewModel.updateEntry(modifiedEntry)
                 showEditDialog = false
             }
         )
@@ -166,10 +180,7 @@ fun ItemDetailScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch { 
-                            repository.removeEntry(entry!!.id)
-                            onNavigateBack()
-                        }
+                        viewModel.removeEntry { onNavigateBack() }
                         showDeleteDialog = false
                     }
                 ) {
@@ -180,6 +191,21 @@ fun ItemDetailScreen(
                 TextButton(onClick = { showDeleteDialog = false }) {
                     Text(stringResource(R.string.action_cancel))
                 }
+            }
+        )
+    }
+
+    if (showConsumeDialog && entry != null) {
+        com.stashapp.android.ui.components.ConsumeDialog(
+            entry = entry!!,
+            onDismiss = { showConsumeDialog = false },
+            onConsumeFull = {
+                viewModel.consumeFull { onNavigateBack() }
+                showConsumeDialog = false
+            },
+            onConsumePartial = { amount ->
+                viewModel.consumePartial(amount) { onNavigateBack() }
+                showConsumeDialog = false
             }
         )
     }

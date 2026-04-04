@@ -96,23 +96,31 @@ data class CatalogProduct(
     val defaultQuantity: Quantity? = null
 )
 
-interface InventoryRepository {
+interface InventoryEntryRepository {
     fun getAllEntries(): Flow<List<InventoryEntry>>
     fun getExpiringEntries(now: Instant): Flow<List<InventoryEntry>>
     suspend fun getEntryById(id: String): InventoryEntry?
     suspend fun addEntry(entry: InventoryEntry)
     suspend fun updateEntry(entry: InventoryEntry)
     suspend fun removeEntry(id: String)
+}
+
+interface StorageLocationRepository {
     fun getStorageLocations(parentId: String? = null): Flow<List<StorageLocation>>
+    fun getAllStorageLocations(): Flow<List<StorageLocation>>
     suspend fun addStorageLocation(location: StorageLocation)
     suspend fun updateStorageLocation(location: StorageLocation)
     suspend fun removeStorageLocation(id: String)
+}
+
+interface CategoryRepository {
     fun getCategories(): Flow<List<Category>>
     suspend fun addCategory(category: Category)
     suspend fun updateCategory(category: Category)
     suspend fun removeCategory(id: String)
-    
-    // Product Catalog
+}
+
+interface CatalogRepository {
     fun getProductByEan(ean: String): Flow<CatalogProduct?>
     fun searchCatalog(query: String): Flow<List<CatalogProduct>>
     suspend fun upsertCatalogProduct(product: CatalogProduct)

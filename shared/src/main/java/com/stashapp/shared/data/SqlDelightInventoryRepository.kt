@@ -12,10 +12,12 @@ import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import app.cash.sqldelight.db.SqlDriver
 
 class SqlDelightInventoryRepository(
-    private val db: StashDatabase
-) : InventoryRepository {
+    private val db: StashDatabase,
+    private val driver: SqlDriver
+) : InventoryEntryRepository, StorageLocationRepository, CategoryRepository, CatalogRepository {
 
     private val locationQueries = db.storageLocationQueries
     private val categoryQueries = db.categoryQueries
@@ -29,6 +31,12 @@ class SqlDelightInventoryRepository(
             locationQueries.selectByParent(parentId)
         }
         return flow.asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { StorageLocation(it.id, it.name, it.icon, it.parent_id) }
+        }
+    }
+
+    override fun getAllStorageLocations(): Flow<List<StorageLocation>> {
+        return locationQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
             list.map { StorageLocation(it.id, it.name, it.icon, it.parent_id) }
         }
     }
@@ -197,5 +205,19 @@ class SqlDelightInventoryRepository(
 
     override suspend fun getLinkedEan(entryId: String): String? {
         return catalogQueries.selectMappingByInventoryId(entryId).executeAsOneOrNull()?.ean
+    }
+
+    suspend fun executeRawSql(sql: String) {
+        driver.execute(null, sql, 0)
+    }
+
+    suspend fun setBulkMode(enabled: Boolean) {
+        if (enabled) {
+            // TURBO: Disable synchronous disk syncs
+            executeRawSql("PRAGMA synchronous = OFF;")
+        } else {
+            // SAFE: Restore synchronous syncs
+            executeRawSql("PRAGMA synchronous = NORMAL;")
+        }
     }
 }

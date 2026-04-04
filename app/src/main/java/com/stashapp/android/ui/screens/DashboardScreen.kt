@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.CreateNewFolder
+import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.*
 import com.stashapp.android.ui.components.ExpiringItemsDialog
 import androidx.compose.runtime.*
@@ -37,12 +39,9 @@ import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.translated
 import com.stashapp.android.ui.components.InventoryItemCard
-import com.stashapp.android.data.SettingsManager
-import com.stashapp.shared.domain.InventoryRepository
 import com.stashapp.shared.domain.InventoryEntry
 import com.stashapp.shared.domain.StorageLocation
 import com.stashapp.shared.domain.Category
-import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -56,19 +55,18 @@ enum class GroupingMode {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    repository: InventoryRepository,
-    settingsManager: SettingsManager,
+    viewModel: DashboardViewModel,
     onNavigateToDetails: (String) -> Unit,
-    globalLeadDays: Int = 2,
     onNavigateToGroup: (GroupingMode, String) -> Unit = { _, _ -> },
     onNavigateToSettings: () -> Unit = {}
 ) {
-    val entries by repository.getAllEntries().collectAsState(initial = emptyList())
-    val activeLocationId by settingsManager.activeLocationId.collectAsState(initial = null)
-    val locations by repository.getStorageLocations(activeLocationId).collectAsState(initial = emptyList())
-    val allLocations by repository.getStorageLocations(null).collectAsState(initial = emptyList())
-    val categories by repository.getCategories().collectAsState(initial = emptyList())
-    val expiringEntries by repository.getExpiringEntries(Instant.now()).collectAsState(initial = emptyList())
+    val entries by viewModel.entries.collectAsState()
+    val activeLocationId by viewModel.activeLocationId.collectAsState()
+    val locations by viewModel.locations.collectAsState()
+    val allLocations by viewModel.allLocations.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    val expiringEntries by viewModel.expiringEntries.collectAsState()
+    val globalLeadDays by viewModel.globalLeadDays.collectAsState()
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showExpiringDialog by remember { mutableStateOf(false) }
@@ -82,7 +80,7 @@ fun DashboardScreen(
     
     var groupingMode by remember { mutableStateOf(GroupingMode.LOCATION) }
     
-    val scope = rememberCoroutineScope()
+
 
     Scaffold(
         topBar = {
@@ -91,7 +89,7 @@ fun DashboardScreen(
                     if (activeLocationId != null) {
                         IconButton(onClick = {
                             val parentId = allLocations.find { it.id == activeLocationId }?.parentId
-                            scope.launch { settingsManager.setActiveLocationId(parentId) }
+                            viewModel.setActiveLocation(parentId)
                         }) {
                             Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onPrimary)
                         }
@@ -169,11 +167,29 @@ fun DashboardScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { showAddDialog = true },
-                icon = { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.action_add_item)) },
-                text = { Text(stringResource(R.string.action_add_item)) }
-            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(bottom = 16.dp, end = 16.dp)
+            ) {
+                // Add Space (Secondary) - Just Text
+                ExtendedFloatingActionButton(
+                    onClick = { showAddLocationDialog = true },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Text(stringResource(R.string.action_add_space))
+                }
+
+                // Add Item (Primary) - Just Text
+                ExtendedFloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Text(stringResource(R.string.action_add_item))
+                }
+            }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
@@ -206,7 +222,7 @@ fun DashboardScreen(
                 ) {
                     Text(
                         text = "🏠", 
-                        modifier = Modifier.clickable { scope.launch { settingsManager.setActiveLocationId(null) } }
+                        modifier = Modifier.clickable { viewModel.setActiveLocation(null) }
                     )
                     path.forEach { loc ->
                         Text(" > ", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -214,7 +230,7 @@ fun DashboardScreen(
                             text = loc.name,
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (loc.id == activeLocationId) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.clickable { scope.launch { settingsManager.setActiveLocationId(loc.id) } }
+                            modifier = Modifier.clickable { viewModel.setActiveLocation(loc.id) }
                         )
                     }
                 }
@@ -252,8 +268,8 @@ fun DashboardScreen(
                         items(searchResults, key = { it.id }) { entry ->
                             InventoryItemCard(
                                 entry = entry,
-                                onUpdate = { scope.launch { repository.updateEntry(it) } },
-                                onDelete = { scope.launch { repository.removeEntry(entry.id) } },
+                                onUpdate = { viewModel.updateEntry(it) },
+                                onDelete = { viewModel.removeEntry(entry.id) },
                                 onDetailsClick = { onNavigateToDetails(entry.id) }
                             )
                         }
@@ -309,7 +325,7 @@ fun DashboardScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { 
                                     if (item is StorageLocation) {
-                                        scope.launch { settingsManager.setActiveLocationId(item.id) }
+                                        viewModel.setActiveLocation(item.id)
                                     } else {
                                         onNavigateToGroup(groupingMode, id)
                                     }
@@ -358,10 +374,32 @@ fun DashboardScreen(
                             }
                         }
                     }
+
                     
                     // If we are in a location, show items directly in this location at the bottom of the grid
                     if (groupingMode == GroupingMode.LOCATION && activeLocationId != null) {
                         val localItems = entries.filter { it.storageLocationId == activeLocationId }
+                        
+                        if (groupItems.isEmpty() && localItems.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(stringResource(R.string.empty_space_title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.height(16.dp))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(onClick = { showAddDialog = true }) {
+                                            Icon(Icons.Default.Add, null)
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(stringResource(R.string.action_add_item))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         if (localItems.isNotEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
@@ -373,8 +411,8 @@ fun DashboardScreen(
                             items(localItems, key = { "item_${it.id}" }, span = { GridItemSpan(maxLineSpan) }) { entry ->
                                 InventoryItemCard(
                                     entry = entry,
-                                    onUpdate = { scope.launch { repository.updateEntry(it) } },
-                                    onDelete = { scope.launch { repository.removeEntry(entry.id) } },
+                                    onUpdate = { viewModel.updateEntry(it) },
+                                    onDelete = { viewModel.removeEntry(entry.id) },
                                     onDetailsClick = { onNavigateToDetails(entry.id) }
                                 )
                             }
@@ -387,18 +425,18 @@ fun DashboardScreen(
 
     if (showAddDialog) {
         AddItemScreen(
-            repository = repository,
+            entryRepository = viewModel.entryRepo,
+            catalogRepository = viewModel.catalogRepo,
             locations = allLocations,
             categories = categories,
             existingEntries = entries,
             globalLeadDays = globalLeadDays,
-            defaultLocationId = activeLocationId,
+            preSelectedLocationId = activeLocationId,
+            preSelectedCategoryId = null,
             onDismiss = { showAddDialog = false },
             onSave = { newOrModifiedEntry, isMerge ->
-                scope.launch { 
-                    if (isMerge) repository.updateEntry(newOrModifiedEntry)
-                    else repository.addEntry(newOrModifiedEntry) 
-                }
+                if (isMerge) viewModel.updateEntry(newOrModifiedEntry)
+                else viewModel.addEntry(newOrModifiedEntry)
                 showAddDialog = false
             }
         )
@@ -407,7 +445,7 @@ fun DashboardScreen(
     if (showExpiringDialog) {
         ExpiringItemsDialog(
             entries = expiringEntries,
-            repository = repository,
+            repository = viewModel.entryRepo,
             onDismiss = { showExpiringDialog = false },
             onNavigateToDetails = onNavigateToDetails
         )
@@ -422,10 +460,8 @@ fun DashboardScreen(
                 editingCategory = null
             },
             onSave = { cat -> 
-                scope.launch { 
-                    if (initialCategory != null) repository.updateCategory(cat)
-                    else repository.addCategory(cat) 
-                }
+                if (initialCategory != null) viewModel.updateCategory(cat)
+                else viewModel.addCategory(cat)
                 showAddCategoryDialog = false
                 editingCategory = null
             }
@@ -443,10 +479,8 @@ fun DashboardScreen(
                 editingLocation = null
             },
             onSave = { loc -> 
-                scope.launch { 
-                    if (initialLocation != null) repository.updateStorageLocation(loc)
-                    else repository.addStorageLocation(loc) 
-                }
+                if (initialLocation != null) viewModel.updateLocation(loc)
+                else viewModel.addLocation(loc)
                 showAddLocationDialog = false
                 editingLocation = null
             }
@@ -462,7 +496,7 @@ fun DashboardScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch { repository.removeStorageLocation(locationToDelete.id) }
+                        viewModel.removeLocation(locationToDelete.id)
                         deletingLocation = null
                     }
                 ) {
@@ -486,7 +520,7 @@ fun DashboardScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch { repository.removeCategory(categoryToDelete.id) }
+                        viewModel.removeCategory(categoryToDelete.id)
                         deletingCategory = null
                     }
                 ) {

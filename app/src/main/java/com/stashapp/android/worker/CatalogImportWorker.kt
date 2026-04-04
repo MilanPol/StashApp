@@ -16,18 +16,22 @@ class CatalogImportWorker(appContext: Context, params: WorkerParameters) :
     override suspend fun doWork(): Result {
         val app = applicationContext as StashApp
         val settingsManager = SettingsManager(applicationContext)
-        val repository = app.repository
-
         return withContext(Dispatchers.IO) {
+            val repository = app.repository
             try {
                 // Shared flag to let other parts of the app know we are busy
-                app.isImporting = true
+                app.isImporting.set(true)
                 
-                // Total bytes for progress calculation (Expanded European/Dutch Catalog: ~80k items)
-                val totalBytes = 3620864L
-                val inputStream = applicationContext.assets.open("dutch_catalog.tsv")
+                // TURBO: Enable high-speed ingestion mode
+                repository.setBulkMode(true)
                 
-                IngestCatalog(repository).ingestFromStream(
+                // Calculate file size at runtime instead of hardcoding
+                val totalBytes = try {
+                    applicationContext.assets.openFd("dutch_catalog.sql").use { it.length }
+                } catch (_: Exception) { 0L }
+                val inputStream = applicationContext.assets.open("dutch_catalog.sql")
+                
+                IngestCatalog { sql -> repository.executeRawSql(sql) }.ingestFromSqlStream(
                     inputStream = inputStream,
                     totalBytes = totalBytes,
                     onProgress = { progress ->
@@ -43,8 +47,11 @@ class CatalogImportWorker(appContext: Context, params: WorkerParameters) :
                 e.printStackTrace()
                 Result.retry()
             } finally {
-                app.isImporting = false
+                // Restoration: Always restore safe mode
+                repository.setBulkMode(false)
+                app.isImporting.set(false)
             }
         }
     }
 }
+

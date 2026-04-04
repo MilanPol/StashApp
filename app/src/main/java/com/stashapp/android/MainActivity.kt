@@ -33,6 +33,8 @@ import com.stashapp.android.ui.screens.GroupListScreen
 import com.stashapp.android.ui.screens.ItemDetailScreen
 import com.stashapp.android.ui.screens.SettingsScreen
 import com.stashapp.android.ui.theme.StashAppTheme
+import com.stashapp.android.ui.screens.DashboardViewModel
+import com.stashapp.android.ui.screens.ItemDetailViewModel
 import com.stashapp.shared.data.SqlDelightInventoryRepository
 import com.stashapp.shared.domain.Category
 import com.stashapp.shared.domain.StorageLocation
@@ -140,10 +142,17 @@ class MainActivity : ComponentActivity() {
 
                         NavHost(navController = navController, startDestination = "dashboard") {
                             composable("dashboard") {
+                                val dashboardViewModel: DashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = DashboardViewModel.Factory(
+                                        entryRepository = repository,
+                                        locationRepository = repository,
+                                        categoryRepository = repository,
+                                        catalogRepository = repository,
+                                        settingsManager = settingsManager
+                                    )
+                                )
                                 DashboardScreen(
-                                    repository = repository,
-                                    settingsManager = settingsManager,
-                                    globalLeadDays = globalLeadDays,
+                                    viewModel = dashboardViewModel,
                                     onNavigateToDetails = { itemId ->
                                         navController.navigate("details/$itemId")
                                     },
@@ -158,7 +167,7 @@ class MainActivity : ComponentActivity() {
                             composable("settings") {
                                 SettingsScreen(
                                     settingsManager = settingsManager,
-                                    repository = repository,
+                                    categoryRepository = repository,
                                     onNavigateBack = { navController.popBackStack() }
                                 )
                             }
@@ -166,7 +175,10 @@ class MainActivity : ComponentActivity() {
                                 val type = backStackEntry.arguments?.getString("type") ?: ""
                                 val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
                                 GroupListScreen(
-                                    repository = repository,
+                                    entryRepository = repository,
+                                    locationRepository = repository,
+                                    categoryRepository = repository,
+                                    catalogRepository = repository,
                                     groupType = type,
                                     groupId = groupId,
                                     onNavigateBack = { navController.popBackStack() },
@@ -176,10 +188,18 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable("details/{itemId}") { backStackEntry ->
-                                val itemId = backStackEntry.arguments?.getString("itemId")
+                                val itemId = backStackEntry.arguments?.getString("itemId") ?: ""
+                                val detailViewModel: ItemDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = ItemDetailViewModel.Factory(
+                                        entryRepository = repository,
+                                        locationRepository = repository,
+                                        categoryRepository = repository,
+                                        catalogRepository = repository,
+                                        itemId = itemId
+                                    )
+                                )
                                 ItemDetailScreen(
-                                    repository = repository,
-                                    itemId = itemId,
+                                    viewModel = detailViewModel,
                                     globalLeadDays = globalLeadDays,
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToGroup = { type, id ->
@@ -189,7 +209,7 @@ class MainActivity : ComponentActivity() {
                             }
                             composable("expiring_soon") {
                                 ExpiringItemsScreen(
-                                    repository = repository,
+                                    entryRepository = repository,
                                     onNavigateBack = { navController.popBackStack() },
                                     onNavigateToDetails = { itemId ->
                                         navController.navigate("details/$itemId")

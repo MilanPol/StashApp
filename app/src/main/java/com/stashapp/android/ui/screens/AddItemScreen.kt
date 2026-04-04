@@ -27,7 +27,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import com.stashapp.android.ui.components.BarcodeScannerView
 import com.stashapp.shared.domain.CatalogProduct
-import com.stashapp.shared.domain.InventoryRepository
+import com.stashapp.shared.domain.InventoryEntryRepository
+import com.stashapp.shared.domain.CatalogRepository
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
@@ -48,7 +49,8 @@ enum class AddMode { UNDEFINED, MANUAL, SCAN }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddItemScreen(
-    repository: InventoryRepository,
+    entryRepository: InventoryEntryRepository,
+    catalogRepository: CatalogRepository,
     locations: List<StorageLocation>,
     categories: List<Category>,
     existingEntries: List<InventoryEntry>,
@@ -56,7 +58,6 @@ fun AddItemScreen(
     preSelectedLocationId: String? = null,
     preSelectedCategoryId: String? = null,
     globalLeadDays: Int = 2,
-    defaultLocationId: String? = null,
     onDismiss: () -> Unit,
     onSave: (InventoryEntry, Boolean) -> Unit
 ) {
@@ -85,7 +86,7 @@ fun AddItemScreen(
     
     LaunchedEffect(name) {
         if (name.length >= 2) {
-            repository.searchCatalog(name).collect { results ->
+            catalogRepository.searchCatalog(name).collect { results ->
                 catalogSearchResults = results
             }
         } else {
@@ -120,7 +121,7 @@ fun AddItemScreen(
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
     val alertDatePickerState = rememberDatePickerState(initialSelectedDateMillis = initialEntry?.alertAt?.toEpochMilli())
 
-    var wantsNotification by remember { mutableStateOf(initialEntry?.alertAt != null || initialEntry?.expirationDate != null) }
+    var wantsNotification by remember { mutableStateOf(initialEntry?.alertAt != null || initialEntry?.expirationDate != null || initialEntry == null) }
     var customAlertDateSet by remember { mutableStateOf(initialEntry?.alertAt != null) }
 
     val filteredSuggestions = existingEntries.filter { 
@@ -191,14 +192,14 @@ fun AddItemScreen(
                             // Learning Catalog: If we have a barcode, save the info to the catalog too
                             scannedBarcode?.let { ean ->
                                 scope.launch {
-                                    repository.upsertCatalogProduct(
+                                    catalogRepository.upsertCatalogProduct(
                                         CatalogProduct(
                                             ean = ean,
                                             name = name,
                                             defaultQuantity = Quantity(amount, selectedUnit)
                                         )
                                     )
-                                    repository.linkEntryToProduct(finalEntryId, ean)
+                                    catalogRepository.linkEntryToProduct(finalEntryId, ean)
                                 }
                             }
                         }
@@ -318,7 +319,7 @@ fun AddItemScreen(
                             BarcodeScannerView { barcode ->
                                 scannedBarcode = barcode
                                 scope.launch {
-                                    repository.getProductByEan(barcode).collect { product ->
+                                    catalogRepository.getProductByEan(barcode).collect { product ->
                                         if (product != null) {
                                             name = product.name
                                             product.defaultQuantity?.let {
@@ -462,8 +463,10 @@ fun AddItemScreen(
                         onDismissRequest = { expandedLocation = false }
                     ) {
                         locations.forEach { loc ->
+                            val parentName = locations.find { it.id == loc.parentId }?.name
+                            val displayName = if (parentName != null) "${loc.icon} ${loc.name} ($parentName)" else "${loc.icon} ${loc.name}"
                             DropdownMenuItem(
-                                text = { Text("${loc.icon} ${loc.name}") },
+                                text = { Text(displayName) },
                                 onClick = {
                                     selectedLocation = loc
                                     expandedLocation = false

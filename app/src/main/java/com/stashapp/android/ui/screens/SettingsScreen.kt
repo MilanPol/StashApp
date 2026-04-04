@@ -13,7 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.data.SettingsManager
-import com.stashapp.shared.domain.InventoryRepository
+import com.stashapp.shared.domain.CategoryRepository
 import com.stashapp.shared.domain.Category
 import kotlinx.coroutines.launch
 
@@ -21,11 +21,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     settingsManager: SettingsManager,
-    repository: InventoryRepository,
+    categoryRepository: CategoryRepository,
     onNavigateBack: () -> Unit
 ) {
     val globalLeadDays by settingsManager.globalLeadDays.collectAsState(initial = 2)
-    val categories by repository.getCategories().collectAsState(initial = emptyList())
+    val categories by categoryRepository.getCategories().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -72,7 +72,7 @@ fun SettingsScreen(
                 HorizontalDivider()
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "Category Overrides", // Should be a string resource
+                    text = stringResource(R.string.settings_category_overrides),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -84,7 +84,7 @@ fun SettingsScreen(
                     globalLeadDays = globalLeadDays,
                     onUpdate = { newDays ->
                         scope.launch {
-                            repository.updateCategory(category.copy(defaultLeadDays = newDays))
+                            categoryRepository.updateCategory(category.copy(defaultLeadDays = newDays))
                         }
                     }
                 )
@@ -147,7 +147,7 @@ fun CategoryLeadDaysItem(
                 Column {
                     Text(text = "${category.icon} ${category.name}", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = if (category.defaultLeadDays == null) "Using global default ($globalLeadDays days)" else "Overridden: $effectiveDays days",
+                        text = if (category.defaultLeadDays == null) stringResource(R.string.settings_using_global_default, globalLeadDays) else stringResource(R.string.settings_overridden_days, effectiveDays),
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

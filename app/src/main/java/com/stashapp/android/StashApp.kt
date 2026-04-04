@@ -1,9 +1,7 @@
 package com.stashapp.android
 
 import android.app.Application
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import java.util.concurrent.atomic.AtomicBoolean
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.stashapp.shared.data.SqlDelightInventoryRepository
@@ -24,14 +22,16 @@ class StashApp : Application() {
                     db.enableWriteAheadLogging()
                     // Turbo settings for faster writes (Synchronous = NORMAL is enough)
                     db.execSQL("PRAGMA synchronous = NORMAL")
+                    // Some Android versions require using query() for pragmas that return a result
+                    db.query("PRAGMA busy_timeout = 5000").close()
                 }
             }
         )
-        SqlDelightInventoryRepository(StashDatabase(driver))
+        SqlDelightInventoryRepository(StashDatabase(driver), driver)
     }
 
     // Shared state to coordinate background work vs heavy import
-    var isImporting by mutableStateOf(false)
+    val isImporting = AtomicBoolean(false)
 
     override fun onCreate() {
         super.onCreate()

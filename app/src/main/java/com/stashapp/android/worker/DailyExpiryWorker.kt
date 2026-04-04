@@ -17,7 +17,7 @@ class DailyExpiryWorker(appContext: Context, workerParams: WorkerParameters) :
         val app = applicationContext as com.stashapp.android.StashApp
         
         // Skip if we are currently doing a heavy import to avoid ANR/contention
-        if (app.isImporting) {
+        if (app.isImporting.get()) {
             return Result.retry()
         }
 

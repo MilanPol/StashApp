@@ -11,14 +11,14 @@ import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.InventoryItemCard
 import com.stashapp.shared.domain.InventoryEntry
-import com.stashapp.shared.domain.InventoryRepository
+import com.stashapp.shared.domain.InventoryEntryRepository
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpiringItemsDialog(
     entries: List<InventoryEntry>,
-    repository: InventoryRepository,
+    repository: InventoryEntryRepository,
     onDismiss: () -> Unit,
     onNavigateToDetails: (String) -> Unit
 ) {
@@ -51,6 +51,11 @@ fun ExpiringItemsDialog(
                             onUpdate = { scope.launch { repository.updateEntry(it) } },
                             onDelete = { scope.launch { repository.removeEntry(entry.id) } },
                             onDetailsClick = { 
+                                onNavigateToDetails(entry.id)
+                                onDismiss()
+                            },
+                            showActions = false,
+                            onCardClick = {
                                 onNavigateToDetails(entry.id)
                                 onDismiss()
                             }

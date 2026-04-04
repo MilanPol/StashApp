@@ -17,8 +17,11 @@
     <!-- Units -->
     <string name="unit_liters">Liter</string>
     <string name="unit_milliliters">Milliliter</string>
+    <string name="unit_centiliters">Centiliter</string>
     <string name="unit_kilograms">Kilogram</string>
     <string name="unit_grams">Gram</string>
+    <string name="unit_milligrams">Milligram</string>
+    <string name="unit_ounces">Ounces</string>
     <string name="unit_pieces">Stuks</string>
 
     <!-- Item Card -->
@@ -100,6 +103,9 @@
     <string name="screen_title_settings">Instellingen</string>
     <string name="settings_notification_description">Beheer je meldingsvoorkeuren.</string>
     <string name="label_global_lead_days">Standaard herinneringstermijn (wereldwijd)</string>
+    <string name="settings_category_overrides">Categorieoverschrijvingen</string>
+    <string name="settings_using_global_default">Gebruikt standaard instelling (%1$d dagen)</string>
+    <string name="settings_overridden_days">Overschreven: %1$d dagen</string>
 
     <!-- Notifications -->
     <string name="label_expiring_soon">Binnenkort verlopen</string>
@@ -115,4 +121,5 @@
     <string name="inventory_items_header">Artikelen op deze plek</string>
     <string name="location_none_root">Geen (Hoofdniveau / Huis)</string>
     <string name="hint_parent_location">Hoofdlocatie</string>
+    <string name="empty_space_title">Deze ruimte is leeg</string>
 </resources>

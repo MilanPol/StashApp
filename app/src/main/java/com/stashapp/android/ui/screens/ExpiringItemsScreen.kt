@@ -12,7 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.InventoryItemCard
-import com.stashapp.shared.domain.InventoryRepository
+import com.stashapp.shared.domain.InventoryEntryRepository
 import com.stashapp.shared.domain.InventoryEntry
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -20,11 +20,11 @@ import java.time.Instant
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpiringItemsScreen(
-    repository: InventoryRepository,
+    entryRepository: InventoryEntryRepository,
     onNavigateBack: () -> Unit,
     onNavigateToDetails: (String) -> Unit
 ) {
-    val entries by repository.getAllEntries().collectAsState(initial = emptyList())
+    val entries by entryRepository.getAllEntries().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     
     val expiringSoon = remember(entries) {
@@ -60,8 +60,8 @@ fun ExpiringItemsScreen(
                 items(expiringSoon, key = { it.id }) { entry ->
                     InventoryItemCard(
                         entry = entry,
-                        onUpdate = { scope.launch { repository.updateEntry(it) } },
-                        onDelete = { scope.launch { repository.removeEntry(entry.id) } },
+                        onUpdate = { scope.launch { entryRepository.updateEntry(it) } },
+                        onDelete = { scope.launch { entryRepository.removeEntry(entry.id) } },
                         onDetailsClick = { onNavigateToDetails(entry.id) }
                     )
                 }

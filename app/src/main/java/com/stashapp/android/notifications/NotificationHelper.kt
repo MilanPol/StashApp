@@ -1,13 +1,16 @@
 package com.stashapp.android.notifications
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.stashapp.android.MainActivity
 import com.stashapp.android.R
 
@@ -74,9 +77,12 @@ class NotificationHelper(private val context: Context) {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return // Permission not granted — skip silently
+        }
         with(NotificationManagerCompat.from(context)) {
-            // Check for permission in modern Android versions if needed, 
-            // but for now we assume it's handled or user will be prompted.
             notify(NOTIFICATION_ID, builder.build())
         }
     }

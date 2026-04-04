@@ -3,7 +3,9 @@ package com.stashapp.android.ui.components
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -30,7 +32,9 @@ fun InventoryItemCard(
     entry: InventoryEntry,
     onUpdate: (InventoryEntry) -> Unit,
     onDelete: () -> Unit,
-    onDetailsClick: () -> Unit
+    onDetailsClick: () -> Unit,
+    showActions: Boolean = true,
+    onCardClick: (() -> Unit)? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showConsumeDialog by remember { mutableStateOf(false) }
@@ -38,12 +42,17 @@ fun InventoryItemCard(
     val isExpired = entry.expirationDate?.isExpired(LocalDate.now()) == true
 
     ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { 
+                if (onCardClick != null) onCardClick() else expanded = !expanded 
+            },
         colors = CardDefaults.elevatedCardColors(
             containerColor = if (isExpired) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surface
         )
     ) {
-        Column(modifier = Modifier.clickable { expanded = !expanded }.padding(16.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -64,14 +73,16 @@ fun InventoryItemCard(
                     Text(stringResource(R.string.label_opened), color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.width(8.dp))
                 }
-                Icon(
-                    imageVector = Icons.Filled.ArrowDropDown,
-                    contentDescription = stringResource(R.string.expand),
-                    modifier = Modifier.rotate(rotation)
-                )
+                if (onCardClick == null) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDropDown,
+                        contentDescription = stringResource(R.string.expand),
+                        modifier = Modifier.rotate(rotation)
+                    )
+                }
             }
             
-            AnimatedVisibility(visible = expanded) {
+            AnimatedVisibility(visible = expanded || onCardClick != null) {
                 Column(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(Modifier.height(12.dp))
@@ -85,25 +96,29 @@ fun InventoryItemCard(
                         Spacer(Modifier.height(8.dp))
                     }
 
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(onClick = onDetailsClick) { Text(stringResource(R.string.action_view_details)) }
-                            
-                            Row {
-                                if (!entry.isOpen) {
-                                    OutlinedButton(onClick = { onUpdate(entry.open(Instant.now())) }) {
-                                        Text(stringResource(R.string.action_open))
-                                    }
-                                    Spacer(Modifier.width(8.dp))
+                    if (showActions) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = onDetailsClick) { 
+                                    Text(stringResource(R.string.action_view_details), maxLines = 1, softWrap = false) 
                                 }
-                                Button(
-                                    onClick = { showConsumeDialog = true }
-                                ) {
-                                    Text(stringResource(R.string.action_consume))
+                                
+                                Row {
+                                    if (!entry.isOpen) {
+                                        OutlinedButton(onClick = { onUpdate(entry.open(Instant.now())) }) {
+                                            Text(stringResource(R.string.action_open), maxLines = 1, softWrap = false)
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    Button(
+                                        onClick = { showConsumeDialog = true }
+                                    ) {
+                                        Text(stringResource(R.string.action_consume), maxLines = 1, softWrap = false)
+                                    }
                                 }
                             }
                         }
