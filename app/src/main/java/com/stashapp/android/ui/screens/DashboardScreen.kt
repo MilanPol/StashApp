@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import com.stashapp.android.ui.components.ExpiringItemsDialog
 import androidx.compose.runtime.*
@@ -58,7 +59,8 @@ fun DashboardScreen(
     viewModel: DashboardViewModel,
     onNavigateToDetails: (String) -> Unit,
     onNavigateToGroup: (GroupingMode, String) -> Unit = { _, _ -> },
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToRecipes: () -> Unit = {}
 ) {
     val entries by viewModel.entries.collectAsState()
     val activeLocationId by viewModel.activeLocationId.collectAsState()
@@ -127,6 +129,14 @@ fun DashboardScreen(
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
+                    }
+
+                    IconButton(onClick = onNavigateToRecipes) {
+                        Icon(
+                            Icons.Default.Restaurant,
+                            contentDescription = stringResource(R.string.nav_recipes),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
 
                     var expandedMenu by remember { mutableStateOf(false) }
@@ -262,7 +272,7 @@ fun DashboardScreen(
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(searchResults, key = { it.id }) { entry ->
@@ -298,7 +308,7 @@ fun DashboardScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {

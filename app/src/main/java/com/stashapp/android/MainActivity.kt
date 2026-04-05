@@ -35,7 +35,13 @@ import com.stashapp.android.ui.screens.SettingsScreen
 import com.stashapp.android.ui.theme.StashAppTheme
 import com.stashapp.android.ui.screens.DashboardViewModel
 import com.stashapp.android.ui.screens.ItemDetailViewModel
+import com.stashapp.android.ui.screens.RecipeListViewModel
+import com.stashapp.android.ui.screens.RecipeListScreen
+import com.stashapp.android.ui.screens.AddEditRecipeScreen
+import com.stashapp.android.ui.screens.CookSessionScreen
+import com.stashapp.android.ui.screens.CookSessionViewModel
 import com.stashapp.shared.data.SqlDelightInventoryRepository
+import com.stashapp.shared.data.SqlDelightRecipeRepository
 import com.stashapp.shared.domain.Category
 import com.stashapp.shared.domain.StorageLocation
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -56,6 +62,7 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private lateinit var repository: SqlDelightInventoryRepository
+    private lateinit var recipeRepository: SqlDelightRecipeRepository
     private lateinit var settingsManager: SettingsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +70,7 @@ class MainActivity : ComponentActivity() {
 
         val app = application as StashApp
         repository = app.repository
+        recipeRepository = app.recipeRepository
         settingsManager = SettingsManager(applicationContext)
 
         lifecycleScope.launch {
@@ -161,6 +169,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onNavigateToSettings = {
                                         navController.navigate("settings")
+                                    },
+                                    onNavigateToRecipes = {
+                                        navController.navigate("recipes")
                                     }
                                 )
                             }
@@ -214,6 +225,57 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToDetails = { itemId ->
                                         navController.navigate("details/$itemId")
                                     }
+                                )
+                            }
+                            composable("recipes") {
+                                val recipeListViewModel: RecipeListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = RecipeListViewModel.Factory(
+                                        recipeRepository = recipeRepository
+                                    )
+                                )
+                                RecipeListScreen(
+                                    viewModel = recipeListViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onNavigateToRecipe = { recipeId ->
+                                        navController.navigate("edit_recipe/$recipeId")
+                                    },
+                                    onNavigateToNewRecipe = {
+                                        navController.navigate("new_recipe")
+                                    },
+                                    onCookRecipe = { recipeId ->
+                                        navController.navigate("cook/$recipeId")
+                                    }
+                                )
+                            }
+                            composable("new_recipe") {
+                                AddEditRecipeScreen(
+                                    recipeRepository = recipeRepository,
+                                    inventoryRepository = repository,
+                                    recipeId = null,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("edit_recipe/{recipeId}") { backStackEntry ->
+                                val recipeId = backStackEntry.arguments?.getString("recipeId") ?: ""
+                                AddEditRecipeScreen(
+                                    recipeRepository = recipeRepository,
+                                    inventoryRepository = repository,
+                                    recipeId = recipeId,
+                                    onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("cook/{recipeId}") { backStackEntry ->
+                                val recipeId = backStackEntry.arguments?.getString("recipeId") ?: ""
+                                val cookViewModel: CookSessionViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = CookSessionViewModel.Factory(
+                                        recipeRepository = recipeRepository,
+                                        entryRepository = repository,
+                                        recipeId = recipeId
+                                    )
+                                )
+                                CookSessionScreen(
+                                    viewModel = cookViewModel,
+                                    onNavigateBack = { navController.popBackStack() }
                                 )
                             }
                         }

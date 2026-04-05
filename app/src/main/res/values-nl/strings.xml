@@ -122,4 +122,36 @@
     <string name="location_none_root">Geen (Hoofdniveau / Huis)</string>
     <string name="hint_parent_location">Hoofdlocatie</string>
     <string name="empty_space_title">Deze ruimte is leeg</string>
+    <!-- Recipe Feature -->
+    <string name="nav_recipes">Recepten</string>
+    <string name="recipe_list_title">Recepten</string>
+    <string name="recipe_add">Recept toevoegen</string>
+    <string name="recipe_empty_title">Nog geen recepten</string>
+    <string name="recipe_empty_subtitle">Maak je eerste recept om te beginnen</string>
+    <string name="recipe_servings">%1$d porties</string>
+    <string name="recipe_ingredients_count">%1$d ingrediënten</string>
+    <string name="recipe_name_hint">Receptnaam</string>
+    <string name="recipe_description_hint">Beschrijving (optioneel)</string>
+    <string name="recipe_servings_hint">Porties</string>
+    <string name="recipe_add_ingredient">Ingrediënt toevoegen</string>
+    <string name="recipe_ingredient_name_hint">Ingrediëntnaam</string>
+    <string name="recipe_ingredient_quantity_hint">Hoeveelheid</string>
+    <string name="recipe_ingredient_notes_hint">Notities (bijv. fijngesneden)</string>
+    <string name="recipe_ingredients_title">Ingrediënten</string>
+    <string name="unit">Eenheid</string>
+    <string name="recipe_delete_confirm">Dit recept verwijderen?</string>
+    <string name="recipe_delete_message">Dit kan niet ongedaan worden gemaakt.</string>
+    <string name="recipe_cook">Koken</string>
+    <string name="cook_select_recipe">Selecteer een recept</string>
+    <string name="cook_review_title">Ingrediënten controleren</string>
+    <string name="cook_status_available">Beschikbaar</string>
+    <string name="cook_status_low">Beperkte voorraad</string>
+    <string name="cook_status_missing">Ontbreekt</string>
+    <string name="cook_warning_missing">Waarschuwing: %1$d ingrediënten ontbreken</string>
+    <string name="cook_available_quantity">Beschikbaar: %1$s</string>
+    <string name="cook_deduct_title">Aftrek bevestigen</string>
+    <string name="cook_deduct_skip">Overslaan</string>
+    <string name="cook_deduct_confirm">Aftrekken</string>
+    <string name="cook_done_title">Klaar met koken!</string>
+    <string name="cook_done_message">Voorraad is bijgewerkt.</string>
 </resources>

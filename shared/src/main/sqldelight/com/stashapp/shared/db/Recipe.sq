@@ -1,0 +1,51 @@
+CREATE TABLE recipe (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    servings INTEGER NOT NULL DEFAULT 4,
+    source_type TEXT NOT NULL DEFAULT 'MANUAL',
+    source_ref TEXT,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE recipe_ingredient (
+    id TEXT NOT NULL PRIMARY KEY,
+    recipe_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    quantity REAL,
+    unit TEXT NOT NULL DEFAULT 'PIECES',
+    notes TEXT,
+    FOREIGN KEY (recipe_id) REFERENCES recipe(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_ingredient_recipe ON recipe_ingredient(recipe_id);
+
+-- Recipe queries
+
+selectAllRecipes:
+SELECT * FROM recipe ORDER BY name;
+
+selectRecipeById:
+SELECT * FROM recipe WHERE id = ?;
+
+insertRecipe:
+INSERT OR REPLACE INTO recipe(id, name, description, servings, source_type, source_ref, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteRecipeById:
+DELETE FROM recipe WHERE id = ?;
+
+-- Ingredient queries
+
+selectIngredientsByRecipeId:
+SELECT * FROM recipe_ingredient WHERE recipe_id = ? ORDER BY name;
+
+insertIngredient:
+INSERT OR REPLACE INTO recipe_ingredient(id, recipe_id, name, quantity, unit, notes)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteIngredientById:
+DELETE FROM recipe_ingredient WHERE id = ?;
+
+deleteIngredientsByRecipeId:
+DELETE FROM recipe_ingredient WHERE recipe_id = ?;

@@ -5,13 +5,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.stashapp.shared.data.SqlDelightInventoryRepository
+import com.stashapp.shared.data.SqlDelightRecipeRepository
 import com.stashapp.shared.db.StashDatabase
 
 class StashApp : Application() {
     
     // Singleton repository to be shared across Activity and Workers
-    val repository: SqlDelightInventoryRepository by lazy {
-        val driver = AndroidSqliteDriver(
+    private val sqliteDriver: AndroidSqliteDriver by lazy {
+        AndroidSqliteDriver(
             schema = StashDatabase.Schema,
             context = applicationContext,
             name = "stashapp.db",
@@ -20,14 +21,23 @@ class StashApp : Application() {
                     super.onOpen(db)
                     db.setForeignKeyConstraintsEnabled(true)
                     db.enableWriteAheadLogging()
-                    // Turbo settings for faster writes (Synchronous = NORMAL is enough)
                     db.execSQL("PRAGMA synchronous = NORMAL")
-                    // Some Android versions require using query() for pragmas that return a result
                     db.query("PRAGMA busy_timeout = 5000").close()
                 }
             }
         )
-        SqlDelightInventoryRepository(StashDatabase(driver), driver)
+    }
+
+    private val database: StashDatabase by lazy {
+        StashDatabase(sqliteDriver)
+    }
+
+    val repository: SqlDelightInventoryRepository by lazy {
+        SqlDelightInventoryRepository(database, sqliteDriver)
+    }
+
+    val recipeRepository: SqlDelightRecipeRepository by lazy {
+        SqlDelightRecipeRepository(database)
     }
 
     // Shared state to coordinate background work vs heavy import
