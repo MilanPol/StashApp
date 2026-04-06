@@ -7,6 +7,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.stashapp.android.util.StateSavers
+import com.stashapp.android.util.StateSavers.listSaver
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import java.time.Instant
+import java.time.ZoneId
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -21,8 +28,6 @@ import com.stashapp.shared.domain.Quantity
 import com.stashapp.shared.domain.StorageLocation
 import com.stashapp.shared.domain.Category
 import java.math.BigDecimal
-import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import com.stashapp.android.ui.components.BarcodeScannerView
@@ -59,18 +64,19 @@ fun AddItemScreen(
     preSelectedCategoryId: String? = null,
     globalLeadDays: Int = 2,
     onDismiss: () -> Unit,
+    onMerge: (String, String) -> Unit,
     onSave: (InventoryEntry, Boolean) -> Unit
 ) {
-    var mode by remember { mutableStateOf(if (initialEntry == null) AddMode.UNDEFINED else AddMode.MANUAL) }
+    var mode by rememberSaveable { mutableStateOf(if (initialEntry == null) AddMode.UNDEFINED else AddMode.MANUAL) }
     
-    var name by remember { mutableStateOf(initialEntry?.name ?: "") }
-    var scannedBarcode by remember { mutableStateOf<String?>(null) }
-    var quantityText by remember { mutableStateOf(initialEntry?.quantity?.amount?.toString() ?: "") }
+    var name by rememberSaveable { mutableStateOf(initialEntry?.name ?: "") }
+    var scannedBarcode by rememberSaveable { mutableStateOf<String?>(null) }
+    var quantityText by rememberSaveable { mutableStateOf(initialEntry?.quantity?.amount?.toString() ?: "") }
     
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     
-    var hasCameraPermission by remember {
+    var hasCameraPermission by rememberSaveable {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         )
@@ -82,62 +88,104 @@ fun AddItemScreen(
         hasCameraPermission = isGranted
     }
 
-    var catalogSearchResults by remember { mutableStateOf<List<CatalogProduct>>(emptyList()) }
+    var catalogSearchResults by rememberSaveable(
+        stateSaver = listSaver(StateSavers.CatalogProductSaver)
+    ) { mutableStateOf(mutableListOf<CatalogProduct>()) }
     
     LaunchedEffect(name) {
         if (name.length >= 2) {
             catalogRepository.searchCatalog(name).collect { results ->
-                catalogSearchResults = results
+                catalogSearchResults = results.toMutableList()
             }
         } else {
-            catalogSearchResults = emptyList()
+            catalogSearchResults = mutableListOf()
         }
     }
-    var expandedUnit by remember { mutableStateOf(false) }
-    var selectedUnit by remember { mutableStateOf(initialEntry?.quantity?.unit ?: MeasurementUnit.PIECES) }
+    var expandedUnit by rememberSaveable { mutableStateOf(false) }
+    var selectedUnit by rememberSaveable { mutableStateOf(initialEntry?.quantity?.unit ?: MeasurementUnit.PIECES) }
 
-    var expandedLocation by remember { mutableStateOf(false) }
-    var selectedLocation by remember { mutableStateOf(
-        initialEntry?.storageLocationId?.let { id -> locations.find { it.id == id } }
-        ?: locations.find { it.id == preSelectedLocationId } 
-        ?: locations.firstOrNull()
-    ) }
+    var expandedLocation by rememberSaveable { mutableStateOf(false) }
+    var selectedLocation: StorageLocation? by rememberSaveable(stateSaver = StateSavers.nullableSaver(StateSavers.StorageLocationSaver)) { 
+        mutableStateOf<StorageLocation?>(
+            initialEntry?.storageLocationId?.let { id -> locations.find { it.id == id } }
+            ?: locations.find { it.id == preSelectedLocationId } 
+            ?: locations.firstOrNull()
+        ) 
+    }
 
-    var expandedCategory by remember { mutableStateOf(false) }
-    var selectedCategory by remember { mutableStateOf<Category?>(
-        initialEntry?.categoryId?.let { id -> categories.find { it.id == id } }
-        ?: categories.find { it.id == preSelectedCategoryId }
-    ) }
+    var expandedCategory by rememberSaveable { mutableStateOf(false) }
+    var selectedCategory: Category? by rememberSaveable(stateSaver = StateSavers.nullableSaver(StateSavers.CategorySaver)) { 
+        mutableStateOf<Category?>(
+            initialEntry?.categoryId?.let { id -> categories.find { it.id == id } }
+            ?: categories.find { it.id == preSelectedCategoryId }
+        ) 
+    }
 
-    var nameDropdownExpanded by remember { mutableStateOf(false) }
+    var nameDropdownExpanded by rememberSaveable { mutableStateOf(false) }
 
-    var showDatePicker by remember { mutableStateOf(false) }
-    var showAlertDialogPicker by remember { mutableStateOf(false) }
+    var showDatePicker by rememberSaveable { mutableStateOf(false) }
+    var showAlertDialogPicker by rememberSaveable { mutableStateOf(false) }
 
-    val initialDateMillis = initialEntry?.expirationDate?.date
+    val initialDateMillisValue = initialEntry?.expirationDate?.date
         ?.atStartOfDay(java.time.ZoneOffset.UTC)
         ?.toInstant()
         ?.toEpochMilli()
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
-    val alertDatePickerState = rememberDatePickerState(initialSelectedDateMillis = initialEntry?.alertAt?.toEpochMilli())
+    
+    var selectedDateMillis by rememberSaveable { mutableStateOf(initialDateMillisValue) }
+    var alertDateMillis by rememberSaveable { mutableStateOf(initialEntry?.alertAt?.toEpochMilli()) }
 
-    var wantsNotification by remember { mutableStateOf(initialEntry?.alertAt != null || initialEntry?.expirationDate != null || initialEntry == null) }
-    var customAlertDateSet by remember { mutableStateOf(initialEntry?.alertAt != null) }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = selectedDateMillis)
+    val alertDatePickerState = rememberDatePickerState(initialSelectedDateMillis = alertDateMillis)
+
+    // Sync back to state so it survives rotation
+    LaunchedEffect(datePickerState.selectedDateMillis) {
+        selectedDateMillis = datePickerState.selectedDateMillis
+    }
+    LaunchedEffect(alertDatePickerState.selectedDateMillis) {
+        alertDateMillis = alertDatePickerState.selectedDateMillis
+    }
+
+    var wantsNotification by rememberSaveable { mutableStateOf(initialEntry?.alertAt != null || initialEntry?.expirationDate != null || initialEntry == null) }
+    var customAlertDateSet by rememberSaveable { mutableStateOf(initialEntry?.alertAt != null) }
 
     val filteredSuggestions = existingEntries.filter { 
         it.name.contains(name, ignoreCase = true) && name.isNotBlank() 
     }.distinctBy { it.name }
 
-    // Evaluation for "Merge Mode"
+    var entryEanMap by remember { mutableStateOf(emptyMap<String, String>()) }
+    LaunchedEffect(existingEntries) {
+        val mapping = mutableMapOf<String, String>()
+        existingEntries.forEach { entry ->
+            catalogRepository.getLinkedEan(entry.id)?.let { ean ->
+                mapping[entry.id] = ean
+            }
+        }
+        entryEanMap = mapping
+    }
+
     val existingMatch = existingEntries.find {
         val selectedExpDate = datePickerState.selectedDateMillis?.let { ms -> Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate() }
-        it.name.equals(name, ignoreCase = true) &&
-        it.storageLocationId == selectedLocation?.id &&
-        it.quantity.unit == selectedUnit &&
-        it.expirationDate?.date == selectedExpDate
+        val nameMatches = it.name.equals(name, ignoreCase = true)
+        val locationMatches = it.storageLocationId == selectedLocation?.id
+        val unitMatches = it.quantity.unit == selectedUnit
+        val expMatches = it.expirationDate?.date?.year == selectedExpDate?.year && 
+                         it.expirationDate?.date?.month == selectedExpDate?.month &&
+                         it.expirationDate?.date?.dayOfMonth == selectedExpDate?.dayOfMonth
+        
+        // Smart identity: Both must have same EAN or both must have none
+        val existingEan = entryEanMap[it.id]
+        val eanMatches = if (scannedBarcode != null && existingEan != null) {
+            scannedBarcode == existingEan
+        } else if (scannedBarcode == null && existingEan == null) {
+            true 
+        } else {
+            false 
+        }
+
+        nameMatches && locationMatches && unitMatches && expMatches && eanMatches && it.id != initialEntry?.id
     }
     
-    var userWantsToMerge by remember { mutableStateOf(true) }
+    var userWantsToMerge by rememberSaveable { mutableStateOf(true) }
     val isMergeMode = existingMatch != null && userWantsToMerge
 
     AlertDialog(
@@ -167,15 +215,23 @@ fun AddItemScreen(
                             } else null
 
                             val finalEntryId: String
-                            if (isMergeMode && existingMatch != null && initialEntry == null) {
-                                finalEntryId = existingMatch.id
-                                val mergedEntry = existingMatch.copy(
-                                    quantity = Quantity(existingMatch.quantity.amount + amount, selectedUnit),
-                                    alertAt = calculatedAlertAt,
-                                    updatedAt = Instant.now()
-                                )
-                                onSave(mergedEntry, true)
+                            if (isMergeMode && existingMatch != null) {
+                                if (initialEntry == null) {
+                                    // ADD & MERGE
+                                    finalEntryId = existingMatch.id
+                                    val mergedEntry = existingMatch.copy(
+                                        quantity = Quantity(existingMatch.quantity.amount + amount, selectedUnit),
+                                        alertAt = calculatedAlertAt,
+                                        updatedAt = Instant.now()
+                                    )
+                                    onSave(mergedEntry, true)
+                                } else {
+                                    // EDIT & MERGE
+                                    finalEntryId = existingMatch.id
+                                    onMerge(initialEntry!!.id, existingMatch.id)
+                                }
                             } else {
+                                // REGULAR SAVE/UPDATE
                                 val entryToSave = (initialEntry ?: InventoryEntry()).copy(
                                     name = name,
                                     quantity = Quantity(amount, selectedUnit),
@@ -206,8 +262,8 @@ fun AddItemScreen(
                     }
                 ) {
                     val buttonRes = when {
-                        initialEntry != null -> R.string.action_save
                         isMergeMode -> R.string.action_add_to_existing
+                        initialEntry != null -> R.string.action_save
                         else -> R.string.action_save
                     }
                     Text(stringResource(buttonRes))
@@ -279,7 +335,12 @@ fun AddItemScreen(
                             ) {
                                 Icon(Icons.Default.CameraAlt, stringResource(R.string.action_scan_barcode), modifier = Modifier.size(32.dp))
                                 Spacer(Modifier.height(8.dp))
-                                Text(stringResource(R.string.action_scan_barcode), style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    stringResource(R.string.action_scan_barcode), 
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
                             }
                         }
 
@@ -297,7 +358,12 @@ fun AddItemScreen(
                             ) {
                                 Icon(Icons.Default.Edit, stringResource(R.string.action_add_manually), modifier = Modifier.size(32.dp))
                                 Spacer(Modifier.height(8.dp))
-                                Text(stringResource(R.string.action_add_manually), style = MaterialTheme.typography.labelLarge)
+                                Text(
+                                    stringResource(R.string.action_add_manually), 
+                                    style = MaterialTheme.typography.labelLarge,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
                             }
                         }
                     }
@@ -394,10 +460,13 @@ fun AddItemScreen(
                                             trailingContent = { Text("Existing", style = MaterialTheme.typography.labelSmall) },
                                             modifier = Modifier.clickable {
                                                 name = suggestion.name
-                                                if (suggestion.categoryId != null) selectedCategory = categories.find { it.id == suggestion.categoryId }
-                                                if (suggestion.storageLocationId != null) selectedLocation = locations.find { it.id == suggestion.storageLocationId }
-                                                selectedUnit = suggestion.quantity.unit
-                                                datePickerState.selectedDateMillis = suggestion.expirationDate?.date?.atStartOfDay(java.time.ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
+                                                // Only override location/category if we are adding a NEW item
+                                                if (initialEntry == null) {
+                                                    if (suggestion.categoryId != null) selectedCategory = categories.find { it.id == suggestion.categoryId }
+                                                    if (suggestion.storageLocationId != null) selectedLocation = locations.find { it.id == suggestion.storageLocationId }
+                                                    selectedUnit = suggestion.quantity.unit
+                                                    datePickerState.selectedDateMillis = suggestion.expirationDate?.date?.atStartOfDay(java.time.ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
+                                                }
                                                 nameDropdownExpanded = false
                                             }
                                         )
@@ -526,14 +595,14 @@ fun AddItemScreen(
                     Text(expirationText)
                 }
 
-                if (existingMatch != null && initialEntry == null) {
+                if (existingMatch != null) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             checked = userWantsToMerge,
                             onCheckedChange = { userWantsToMerge = it }
                         )
                         Text(
-                            text = stringResource(R.string.label_merge_with_existing),
+                            text = if (initialEntry == null) stringResource(R.string.label_merge_with_existing) else stringResource(R.string.action_merge_into_duplicate),
                             color = MaterialTheme.colorScheme.secondary,
                             style = MaterialTheme.typography.bodySmall
                         )

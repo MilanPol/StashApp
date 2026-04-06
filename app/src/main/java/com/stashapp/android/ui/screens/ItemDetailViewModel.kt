@@ -31,7 +31,7 @@ class ItemDetailViewModel(
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     val locations: StateFlow<List<StorageLocation>> =
-        locationRepository.getStorageLocations()
+        locationRepository.getAllStorageLocations()
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun updateEntry(entry: InventoryEntry) = viewModelScope.launch {

@@ -27,6 +27,10 @@ import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.*
 import com.stashapp.android.ui.components.ExpiringItemsDialog
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.stashapp.android.util.StateSavers
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,17 +74,17 @@ fun DashboardScreen(
     val expiringEntries by viewModel.expiringEntries.collectAsState()
     val globalLeadDays by viewModel.globalLeadDays.collectAsState()
     
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showExpiringDialog by remember { mutableStateOf(false) }
-    var showAddLocationDialog by remember { mutableStateOf(false) }
-    var showAddCategoryDialog by remember { mutableStateOf(false) }
+    var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var showExpiringDialog by rememberSaveable { mutableStateOf(false) }
+    var showAddLocationDialog by rememberSaveable { mutableStateOf(false) }
+    var showAddCategoryDialog by rememberSaveable { mutableStateOf(false) }
     
-    var editingLocation by remember { mutableStateOf<StorageLocation?>(null) }
-    var editingCategory by remember { mutableStateOf<Category?>(null) }
-    var deletingLocation by remember { mutableStateOf<StorageLocation?>(null) }
-    var deletingCategory by remember { mutableStateOf<Category?>(null) }
+    var editingLocation: StorageLocation? by rememberSaveable(stateSaver = StateSavers.nullableSaver(StateSavers.StorageLocationSaver)) { mutableStateOf<StorageLocation?>(null) }
+    var editingCategory: Category? by rememberSaveable(stateSaver = StateSavers.nullableSaver(StateSavers.CategorySaver)) { mutableStateOf<Category?>(null) }
+    var deletingLocation: StorageLocation? by rememberSaveable(stateSaver = StateSavers.nullableSaver(StateSavers.StorageLocationSaver)) { mutableStateOf<StorageLocation?>(null) }
+    var deletingCategory: Category? by rememberSaveable(stateSaver = StateSavers.nullableSaver(StateSavers.CategorySaver)) { mutableStateOf<Category?>(null) }
     
-    var groupingMode by remember { mutableStateOf(GroupingMode.LOCATION) }
+    var groupingMode by rememberSaveable { mutableStateOf(GroupingMode.LOCATION) }
     
 
 
@@ -444,6 +448,10 @@ fun DashboardScreen(
             preSelectedLocationId = activeLocationId,
             preSelectedCategoryId = null,
             onDismiss = { showAddDialog = false },
+            onMerge = { sourceId, targetId ->
+                viewModel.mergeEntries(sourceId, targetId)
+                showAddDialog = false
+            },
             onSave = { newOrModifiedEntry, isMerge ->
                 if (isMerge) viewModel.updateEntry(newOrModifiedEntry)
                 else viewModel.addEntry(newOrModifiedEntry)
@@ -552,8 +560,8 @@ fun AddCategoryDialog(
     onDismiss: () -> Unit, 
     onSave: (Category) -> Unit
 ) {
-    var name by remember { mutableStateOf(initialCategory?.name ?: "") }
-    var icon by remember { mutableStateOf(initialCategory?.icon ?: "📁") }
+    var name by rememberSaveable { mutableStateOf(initialCategory?.name ?: "") }
+    var icon by rememberSaveable { mutableStateOf(initialCategory?.icon ?: "📁") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -598,10 +606,10 @@ fun AddLocationDialog(
     onDismiss: () -> Unit, 
     onSave: (StorageLocation) -> Unit
 ) {
-    var name by remember { mutableStateOf(initialLocation?.name ?: "") }
-    var icon by remember { mutableStateOf(initialLocation?.icon ?: "📦") }
-    var parentId by remember { mutableStateOf(initialLocation?.parentId ?: suggestedParentId) }
-    var expandedParentPicker by remember { mutableStateOf(false) }
+    var name by rememberSaveable { mutableStateOf(initialLocation?.name ?: "") }
+    var icon by rememberSaveable { mutableStateOf(initialLocation?.icon ?: "📦") }
+    var parentId by rememberSaveable { mutableStateOf(initialLocation?.parentId ?: suggestedParentId) }
+    var expandedParentPicker by rememberSaveable { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

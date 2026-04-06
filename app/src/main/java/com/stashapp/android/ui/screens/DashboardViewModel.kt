@@ -50,6 +50,9 @@ class DashboardViewModel(
     fun addEntry(entry: InventoryEntry) = viewModelScope.launch { entryRepository.addEntry(entry) }
     fun updateEntry(entry: InventoryEntry) = viewModelScope.launch { entryRepository.updateEntry(entry) }
     fun removeEntry(id: String) = viewModelScope.launch { entryRepository.removeEntry(id) }
+    fun mergeEntries(sourceId: String, targetId: String) = viewModelScope.launch { 
+        entryRepository.mergeEntries(sourceId, targetId) 
+    }
 
     // Location operations
     fun addLocation(location: StorageLocation) = viewModelScope.launch { locationRepository.addStorageLocation(location) }

@@ -124,6 +124,36 @@ class SqlDelightInventoryRepository(
         entryQueries.deleteById(id)
     }
 
+    override suspend fun mergeEntries(sourceId: String, targetId: String) {
+        db.transaction {
+            val source = entryQueries.selectById(sourceId).executeAsOneOrNull()
+            val target = entryQueries.selectById(targetId).executeAsOneOrNull()
+
+            if (source != null && target != null) {
+                val sourceAmount = BigDecimal(source.quantity_amount)
+                val targetAmount = BigDecimal(target.quantity_amount)
+                val newAmount = targetAmount.add(sourceAmount)
+
+                // Update target quantity and timestamp
+                entryQueries.updateQuantity(
+                    quantity_amount = newAmount.toPlainString(),
+                    updated_at = Instant.now().toEpochMilli(),
+                    id = targetId
+                )
+
+                // If source has mapping and target doesn't, move it
+                val sourceMapping = catalogQueries.selectMappingByInventoryId(sourceId).executeAsOneOrNull()
+                val targetMapping = catalogQueries.selectMappingByInventoryId(targetId).executeAsOneOrNull()
+                if (sourceMapping != null && targetMapping == null) {
+                    catalogQueries.insertMapping(targetId, sourceMapping.ean)
+                }
+
+                // Delete source entry (mapping will cascade delete)
+                entryQueries.deleteById(sourceId)
+            }
+        }
+    }
+
     private fun mapToDomain(row: com.stashapp.shared.db.Inventory_entry): InventoryEntry {
         val quantity = Quantity(
             amount = BigDecimal(row.quantity_amount),

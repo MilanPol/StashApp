@@ -27,7 +27,7 @@ data class RecipeIngredient(
 
 sealed class RecipeSource {
     object Manual : RecipeSource()
-    data class ImportedUrl(val url: String) : RecipeSource()
+    data class ImportedText(val text: String) : RecipeSource()
     data class ScannedPhoto(val imageRef: String) : RecipeSource()
 }
 

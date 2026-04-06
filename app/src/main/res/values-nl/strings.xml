@@ -154,4 +154,19 @@
     <string name="cook_deduct_confirm">Aftrekken</string>
     <string name="cook_done_title">Klaar met koken!</string>
     <string name="cook_done_message">Voorraad is bijgewerkt.</string>
+    <!-- Recipe Source Feature -->
+    <string name="recipe_source_label">Bron</string>
+    <string name="recipe_source_manual">Handmatig invoeren</string>
+    <string name="recipe_source_url">Website</string>
+    <string name="recipe_source_scan">Foto scannen</string>
+    <string name="recipe_source_url_hint">Recept URL (bijv. https://…)</string>
+    <string name="recipe_source_url_saved">Referentie opgeslagen</string>
+    <string name="scan_instructions">Richt je camera op een recept. Tekst wordt automatisch gedetecteerd.</string>
+    <string name="scan_capture">Vastleggen</string>
+    <string name="scan_retake">Opnieuw</string>
+    <string name="scan_select_lines">Selecteer regels om te importeren als ingrediënten:</string>
+    <string name="scan_use_selected">Selectie gebruiken</string>
+    <string name="scan_lines_detected">regels gedetecteerd</string>
+    <string name="scan_start">Recept scannen</string>
+    <string name="recipe_source_url_open">Link openen</string>
 </resources>

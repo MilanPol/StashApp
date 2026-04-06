@@ -96,14 +96,14 @@ class SqlDelightRecipeRepository(
     private fun encodeSource(source: RecipeSource): Pair<String, String?> {
         return when (source) {
             is RecipeSource.Manual -> "MANUAL" to null
-            is RecipeSource.ImportedUrl -> "URL" to source.url
+            is RecipeSource.ImportedText -> "TEXT" to source.text
             is RecipeSource.ScannedPhoto -> "PHOTO" to source.imageRef
         }
     }
 
     private fun decodeSource(type: String, ref: String?): RecipeSource {
         return when (type) {
-            "URL" -> RecipeSource.ImportedUrl(ref ?: "")
+            "TEXT", "URL" -> RecipeSource.ImportedText(ref ?: "")
             "PHOTO" -> RecipeSource.ScannedPhoto(ref ?: "")
             else -> RecipeSource.Manual
         }

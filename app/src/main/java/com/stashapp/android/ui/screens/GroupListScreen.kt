@@ -34,7 +34,7 @@ fun GroupListScreen(
     onNavigateToDetails: (String) -> Unit
 ) {
     val entries by entryRepository.getAllEntries().collectAsState(initial = emptyList())
-    val locations by locationRepository.getStorageLocations().collectAsState(initial = emptyList())
+    val locations by locationRepository.getAllStorageLocations().collectAsState(initial = emptyList())
     val categories by categoryRepository.getCategories().collectAsState(initial = emptyList())
 
     val scope = rememberCoroutineScope()
@@ -123,6 +123,10 @@ fun GroupListScreen(
             preSelectedLocationId = if (isLocation) groupId else null,
             preSelectedCategoryId = if (!isLocation) groupId else null,
             onDismiss = { showAddDialog = false },
+            onMerge = { sourceId, targetId ->
+                scope.launch { entryRepository.mergeEntries(sourceId, targetId) }
+                showAddDialog = false
+            },
             onSave = { newOrModifiedEntry, isMerge ->
                 scope.launch { 
                     if (isMerge) entryRepository.updateEntry(newOrModifiedEntry)

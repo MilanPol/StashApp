@@ -8,6 +8,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.stashapp.android.util.StateSavers
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -34,9 +38,9 @@ fun ItemDetailScreen(
     val categories by viewModel.categories.collectAsState()
     val locations by viewModel.locations.collectAsState()
 
-    var showEditDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showConsumeDialog by remember { mutableStateOf(false) }
+    var showEditDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var showConsumeDialog by rememberSaveable { mutableStateOf(false) }
 
 
     Scaffold(
@@ -165,6 +169,12 @@ fun ItemDetailScreen(
             initialEntry = entry,
             globalLeadDays = globalLeadDays,
             onDismiss = { showEditDialog = false },
+            onMerge = { _, _ ->
+                // After merge, the current item is deleted and another is updated.
+                // We should probably navigate back as this item no longer exists independently.
+                onNavigateBack()
+                showEditDialog = false
+            },
             onSave = { modifiedEntry, _ ->
                 viewModel.updateEntry(modifiedEntry)
                 showEditDialog = false

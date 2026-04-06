@@ -18,6 +18,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.shared.domain.Recipe
+import com.stashapp.shared.domain.RecipeSource
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.OpenInNew
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,6 +141,23 @@ fun RecipeCard(
                     modifier = Modifier.weight(1f)
                 )
                 
+                // Source indicator icon
+                when (recipe.source) {
+                    is RecipeSource.ImportedText -> Icon(
+                        Icons.Default.Assignment,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    is RecipeSource.ScannedPhoto -> Icon(
+                        Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    else -> { /* No icon for manual */ }
+                }
+
                 Button(
                     onClick = onCookClick,
                     modifier = Modifier.height(32.dp),

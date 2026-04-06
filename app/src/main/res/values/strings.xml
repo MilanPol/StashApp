@@ -75,6 +75,7 @@
     <string name="label_none">None</string>
     <string name="label_set_expiration_date">Set Expiration Date</string>
     <string name="label_merge_with_existing">Merge with existing stock?</string>
+    <string name="action_merge_into_duplicate">Merge with existing?</string>
     <string name="action_add_to_existing">Add to Existing</string>
     <string name="action_ok">OK</string>
     <string name="label_notifications">Notifications</string>
@@ -154,4 +155,23 @@
     <string name="cook_deduct_confirm">Deduct</string>
     <string name="cook_done_title">Done cooking!</string>
     <string name="cook_done_message">Inventory has been updated.</string>
+    <!-- Recipe Source Feature -->
+    <string name="recipe_source_label">Source</string>
+    <string name="recipe_source_manual">Manual entry</string>
+    <string name="recipe_source_paste">Paste ingredients</string>
+    <string name="recipe_source_scan">Photo scan</string>
+    <string name="recipe_source_url_hint">Recipe URL (e.g. https://…)</string>
+    <string name="recipe_source_url_saved">Reference saved</string>
+    <string name="scan_instructions">Point your camera at a recipe. Text will be detected automatically.</string>
+    <string name="scan_capture">Capture</string>
+    <string name="scan_retake">Retake</string>
+    <string name="scan_select_lines">Select lines to import:</string>
+    <string name="scan_description_hint">Scan instructions</string>
+    <string name="scan_use_selected">Use selected</string>
+    <string name="scan_lines_detected">lines detected</string>
+    <string name="scan_start">Scan recipe</string>
+    <string name="recipe_source_url_open">Open link</string>
+    <string name="dialog_paste_ingredients_title">Paste Ingredients</string>
+    <string name="hint_paste_ingredients">Paste your ingredients here, one per line.</string>
+    <string name="action_parse">Parse</string>
 </resources>
