@@ -30,14 +30,17 @@ fun BarcodeScannerView(
     
     val barcodeScanner = remember {
         val options = BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_EAN_13, Barcode.FORMAT_EAN_8, Barcode.FORMAT_UPC_A, Barcode.FORMAT_UPC_E)
+            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
             .build()
         BarcodeScanning.getClient(options)
     }
 
+    var hasDetected by remember { mutableStateOf(false) }
+
     DisposableEffect(Unit) {
         onDispose {
             cameraExecutor.shutdown()
+            barcodeScanner.close()
         }
     }
 
@@ -65,7 +68,12 @@ fun BarcodeScannerView(
                     .build()
                     .also {
                         it.setAnalyzer(cameraExecutor) { imageProxy ->
-                            processImageProxy(barcodeScanner, imageProxy, onBarcodeDetected)
+                            processImageProxy(barcodeScanner, imageProxy) { barcode ->
+                                if (!hasDetected) {
+                                    hasDetected = true
+                                    onBarcodeDetected(barcode)
+                                }
+                            }
                         }
                     }
 
@@ -87,7 +95,6 @@ fun BarcodeScannerView(
     )
 }
 
-@SuppressLint("UnsafeOptInUsageError")
 private fun processImageProxy(
     barcodeScanner: com.google.mlkit.vision.barcode.BarcodeScanner,
     imageProxy: ImageProxy,
@@ -99,9 +106,7 @@ private fun processImageProxy(
         barcodeScanner.process(image)
             .addOnSuccessListener { barcodes ->
                 for (barcode in barcodes) {
-                    barcode.rawValue?.let { 
-                        onBarcodeDetected(it)
-                    }
+                    barcode.rawValue?.let { onBarcodeDetected(it) }
                 }
             }
             .addOnFailureListener {

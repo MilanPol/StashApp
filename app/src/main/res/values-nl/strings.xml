@@ -169,4 +169,29 @@
     <string name="scan_lines_detected">regels gedetecteerd</string>
     <string name="scan_start">Recept scannen</string>
     <string name="recipe_source_url_open">Link openen</string>
+    <!-- Shopping List & Restock -->
+    <string name="nav_shopping_list">Boodschappenlijst</string>
+    <string name="shopping_list_title">Boodschappenlijst</string>
+    <string name="shopping_list_empty_title">Je lijst is leeg</string>
+    <string name="shopping_list_empty_subtitle">Voeg items toe die je moet kopen</string>
+    <string name="shopping_add_item">Item toevoegen</string>
+    <string name="shopping_item_name_hint">Item naam (bijv. Melk)</string>
+    <string name="shopping_scan_receipt">Bon scannen</string>
+    <string name="restock_title">Voorraad aanvullen</string>
+    <string name="restock_unassigned">Niet toegewezen</string>
+    <string name="restock_assigned">Toegewezen</string>
+    <string name="restock_confirm_all">Bevestig aanvullen</string>
+    <string name="restock_select_location">Kies locatie voor %1$d items</string>
+    <string name="restock_done_title">Aanvullen voltooid</string>
+    <string name="restock_done_message">Voorraad bijgewerkt en lijst leeggemaakt!</string>
+    <string name="restock_instructions">Selecteer items en wijs ze toe aan een locatie.</string>
+    <string name="restock_choice_title">Aanvulopties</string>
+    <string name="restock_choice_scan">Bon scannen</string>
+    <string name="restock_choice_manual">Handmatige invoer</string>
+    <string name="action_add_manual_item">Item toevoegen</string>
+    <string name="dialog_restock_merge_title">Item samenvoegen?</string>
+    <string name="dialog_restock_merge_message">Er bestaat al een item met deze naam in \'%1$s\'. Wil je het samenvoegen of als een uniek item toevoegen?</string>
+    <string name="action_merge">Samenvoegen</string>
+    <string name="action_add_unique">Uniek toevoegen</string>
+    <string name="hint_search_catalog">Productcatalogus doorzoeken…</string>
 </resources>

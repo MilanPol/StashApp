@@ -27,19 +27,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import com.stashapp.android.data.SettingsManager
-import com.stashapp.android.ui.screens.DashboardScreen
-import com.stashapp.android.ui.screens.ExpiringItemsScreen
-import com.stashapp.android.ui.screens.GroupListScreen
-import com.stashapp.android.ui.screens.ItemDetailScreen
-import com.stashapp.android.ui.screens.SettingsScreen
+import com.stashapp.android.ui.screens.*
 import com.stashapp.android.ui.theme.StashAppTheme
-import com.stashapp.android.ui.screens.DashboardViewModel
-import com.stashapp.android.ui.screens.ItemDetailViewModel
-import com.stashapp.android.ui.screens.RecipeListViewModel
-import com.stashapp.android.ui.screens.RecipeListScreen
-import com.stashapp.android.ui.screens.AddEditRecipeScreen
-import com.stashapp.android.ui.screens.CookSessionScreen
-import com.stashapp.android.ui.screens.CookSessionViewModel
 import com.stashapp.shared.data.SqlDelightInventoryRepository
 import com.stashapp.shared.data.SqlDelightRecipeRepository
 import com.stashapp.shared.domain.Category
@@ -52,6 +41,8 @@ import androidx.work.WorkManager
 import com.stashapp.android.worker.CatalogImportWorker
 import com.stashapp.android.worker.DailyExpiryWorker
 import com.stashapp.shared.util.IngestCatalog
+import com.stashapp.shared.domain.*
+import com.stashapp.shared.domain.usecase.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
@@ -172,6 +163,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onNavigateToRecipes = {
                                         navController.navigate("recipes")
+                                    },
+                                    onNavigateToShoppingList = {
+                                        navController.navigate("shopping_list")
                                     }
                                 )
                             }
@@ -276,6 +270,85 @@ class MainActivity : ComponentActivity() {
                                 CookSessionScreen(
                                     viewModel = cookViewModel,
                                     onNavigateBack = { navController.popBackStack() }
+                                )
+                            }
+                            composable("shopping_list") {
+                                val shoppingViewModel: ShoppingListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = ShoppingListViewModel.Factory(
+                                        repository = repository
+                                    )
+                                )
+                                ShoppingListScreen(
+                                    viewModel = shoppingViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onRestockRequested = { isManual ->
+                                        if (isManual) {
+                                            lifecycleScope.launch {
+                                                val purchasedItems = repository.getPurchasedItems().first()
+                                                val restockItems = purchasedItems.map { shopItem ->
+                                                    RestockItem(
+                                                        sessionId = "", // Repo handles
+                                                        name = shopItem.name,
+                                                        quantity = shopItem.quantity ?: Quantity(java.math.BigDecimal.ONE, MeasurementUnit.PIECES),
+                                                        shoppingListItemId = shopItem.id,
+                                                        catalogEan = shopItem.catalogEan
+                                                    )
+                                                }
+                                                val sessionId = repository.createSession(restockItems)
+                                                withContext(Dispatchers.Main) {
+                                                    navController.navigate("restock_dashboard/$sessionId")
+                                                }
+                                            }
+                                        } else {
+                                            navController.navigate("receipt_scan")
+                                        }
+                                    }
+                                )
+                            }
+                            composable("receipt_scan") {
+                                val scanViewModel: ReceiptScanViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = ReceiptScanViewModel.Factory(
+                                        matchReceiptUseCase = com.stashapp.shared.domain.usecase.MatchReceiptUseCase(repository, repository)
+                                    )
+                                )
+                                ReceiptScanScreen(
+                                    viewModel = scanViewModel,
+                                    onNavigateBack = { navController.popBackStack() },
+                                    onConfirmScan = { result: ReceiptScanResult ->
+                                        lifecycleScope.launch {
+                                            val items = result.matches.map { match: ReceiptMatch ->
+                                                RestockItem(
+                                                    sessionId = "", // Placeholder, repo handles actual linking
+                                                    name = match.matchedCatalogProduct?.name ?: match.receiptLine.name,
+                                                    quantity = match.receiptLine.quantity,
+                                                    shoppingListItemId = match.matchedShoppingItem?.id,
+                                                    catalogEan = match.matchedCatalogProduct?.ean
+                                                )
+                                            }
+                                            val sessionId = repository.createSession(items)
+                                            withContext(Dispatchers.Main) {
+                                                navController.navigate("restock_dashboard/$sessionId")
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                            composable("restock_dashboard/{sessionId}") { backStackEntry ->
+                                val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
+                                val restockViewModel: RestockDashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = RestockDashboardViewModel.Factory(
+                                        restockRepository = repository,
+                                        locationRepository = repository,
+                                        entryRepository = repository,
+                                        catalogRepository = repository,
+                                        sessionId = sessionId
+                                    )
+                                )
+                                RestockDashboardScreen(
+                                    viewModel = restockViewModel,
+                                    onNavigateBack = { navController.navigate("dashboard") { 
+                                        popUpTo("dashboard") { inclusive = true } 
+                                    } }
                                 )
                             }
                         }

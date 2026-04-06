@@ -1,0 +1,2 @@
+-- Migration to add expiration_date to restock_item
+ALTER TABLE restock_item ADD COLUMN expiration_date INTEGER;

@@ -35,3 +35,11 @@ selectExpiring:
 SELECT * FROM inventory_entry 
 WHERE alert_at IS NOT NULL AND alert_at <= :now
 ORDER BY alert_at ASC;
+
+selectByName:
+SELECT * FROM inventory_entry WHERE name = ?;
+
+selectByCatalogEan:
+SELECT e.* FROM inventory_entry e
+JOIN inventory_product_mapping m ON e.id = m.inventory_id
+WHERE m.ean = ?;

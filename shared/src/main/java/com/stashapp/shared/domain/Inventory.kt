@@ -104,6 +104,8 @@ interface InventoryEntryRepository {
     suspend fun updateEntry(entry: InventoryEntry)
     suspend fun removeEntry(id: String)
     suspend fun mergeEntries(sourceId: String, targetId: String)
+    suspend fun findEntryByName(name: String): InventoryEntry?
+    suspend fun findEntryByCatalogEan(ean: String): InventoryEntry?
 }
 
 interface StorageLocationRepository {

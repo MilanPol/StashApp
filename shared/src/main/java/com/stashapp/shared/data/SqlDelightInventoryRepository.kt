@@ -5,6 +5,8 @@ import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.stashapp.shared.db.StashDatabase
 import com.stashapp.shared.domain.*
+import com.stashapp.shared.domain.RestockItemStatus
+import com.stashapp.shared.domain.RestockSessionStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -12,17 +14,20 @@ import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.util.UUID
 import app.cash.sqldelight.db.SqlDriver
 
 class SqlDelightInventoryRepository(
     private val db: StashDatabase,
     private val driver: SqlDriver
-) : InventoryEntryRepository, StorageLocationRepository, CategoryRepository, CatalogRepository {
+) : InventoryEntryRepository, StorageLocationRepository, CategoryRepository, CatalogRepository, ShoppingListRepository, RestockRepository {
 
     private val locationQueries = db.storageLocationQueries
     private val categoryQueries = db.categoryQueries
     private val entryQueries = db.inventoryEntryQueries
     private val catalogQueries = db.catalogProductQueries
+    private val shoppingQueries = db.shoppingListItemQueries
+    private val restockQueries = db.restockSessionQueries
 
     override fun getStorageLocations(parentId: String?): Flow<List<StorageLocation>> {
         val flow = if (parentId == null) {
@@ -154,6 +159,14 @@ class SqlDelightInventoryRepository(
         }
     }
 
+    override suspend fun findEntryByName(name: String): InventoryEntry? {
+        return entryQueries.selectByName(name).executeAsOneOrNull()?.let { mapToDomain(it) }
+    }
+
+    override suspend fun findEntryByCatalogEan(ean: String): InventoryEntry? {
+        return entryQueries.selectByCatalogEan(ean).executeAsOneOrNull()?.let { mapToDomain(it) }
+    }
+
     private fun mapToDomain(row: com.stashapp.shared.db.Inventory_entry): InventoryEntry {
         val quantity = Quantity(
             amount = BigDecimal(row.quantity_amount),
@@ -235,6 +248,199 @@ class SqlDelightInventoryRepository(
 
     override suspend fun getLinkedEan(entryId: String): String? {
         return catalogQueries.selectMappingByInventoryId(entryId).executeAsOneOrNull()?.ean
+    }
+
+    // ShoppingListRepository Implementation
+    override fun getItems(): Flow<List<ShoppingListItem>> {
+        return shoppingQueries.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { mapToShoppingDomain(it) }
+        }
+    }
+
+    override fun getActiveItems(): Flow<List<ShoppingListItem>> {
+        return shoppingQueries.selectActive().asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { mapToShoppingDomain(it) }
+        }
+    }
+
+    override fun getPurchasedItems(): Flow<List<ShoppingListItem>> {
+        return shoppingQueries.selectPurchased().asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { mapToShoppingDomain(it) }
+        }
+    }
+
+    override suspend fun addOrUpdateItem(item: ShoppingListItem) {
+        shoppingQueries.insert(
+            id = item.id,
+            name = item.name,
+            quantity_amount = item.quantity?.amount?.toPlainString(),
+            quantity_unit = item.quantity?.unit?.name,
+            is_purchased = if (item.isPurchased) 1L else 0L,
+            is_restocked = if (item.isRestocked) 1L else 0L,
+            catalog_ean = item.catalogEan
+        )
+    }
+
+    override suspend fun deleteItem(id: String) {
+        shoppingQueries.deleteById(id)
+    }
+
+    override suspend fun markAsPurchased(id: String, purchased: Boolean) {
+        shoppingQueries.updatePurchased(if (purchased) 1L else 0L, id)
+    }
+
+    override suspend fun markAsRestocked(id: String) {
+        shoppingQueries.updateRestocked(id)
+    }
+
+    private fun mapToShoppingDomain(row: com.stashapp.shared.db.Shopping_list_item): ShoppingListItem {
+        val qty = if (row.quantity_amount != null && row.quantity_unit != null) {
+            Quantity(BigDecimal(row.quantity_amount), MeasurementUnit.valueOf(row.quantity_unit))
+        } else null
+        return ShoppingListItem(
+            id = row.id,
+            name = row.name,
+            quantity = qty,
+            isPurchased = row.is_purchased == 1L,
+            isRestocked = row.is_restocked == 1L,
+            catalogEan = row.catalog_ean
+        )
+    }
+
+    // RestockRepository Implementation
+    override fun getActiveSession(): Flow<RestockSession?> {
+        return restockQueries.selectActiveSession().asFlow().mapToOneOrNull(Dispatchers.IO).map { row ->
+            row?.let { RestockSession(it.id, Instant.ofEpochMilli(it.created_at), RestockSessionStatus.valueOf(it.status)) }
+        }
+    }
+
+    override fun getSessionItems(sessionId: String): Flow<List<RestockItem>> {
+        return restockQueries.selectItemsBySession(sessionId).asFlow().mapToList(Dispatchers.IO).map { list ->
+            list.map { mapToRestockItemDomain(it) }
+        }
+    }
+
+    override suspend fun createSession(items: List<RestockItem>): String {
+        val sessionId = UUID.randomUUID().toString()
+        db.transaction {
+            restockQueries.insertSession(sessionId, Instant.now().toEpochMilli(), RestockSessionStatus.OPEN.name)
+            items.forEach { item ->
+                restockQueries.insertItem(
+                    id = item.id,
+                    session_id = sessionId,
+                    name = item.name,
+                    quantity_amount = item.quantity.amount.toPlainString(),
+                    quantity_unit = item.quantity.unit.name,
+                    shopping_list_item_id = item.shoppingListItemId,
+                    catalog_ean = item.catalogEan,
+                    location_id = item.locationId,
+                    expiration_date = item.expirationDate?.toEpochMilli(),
+                    status = item.status.name
+                )
+            }
+        }
+        return sessionId
+    }
+
+    override suspend fun addItemToSession(sessionId: String, item: RestockItem) {
+        restockQueries.insertItem(
+            id = item.id,
+            session_id = sessionId,
+            name = item.name,
+            quantity_amount = item.quantity.amount.toPlainString(),
+            quantity_unit = item.quantity.unit.name,
+            shopping_list_item_id = item.shoppingListItemId,
+            catalog_ean = item.catalogEan,
+            location_id = item.locationId,
+            expiration_date = item.expirationDate?.toEpochMilli(),
+            status = item.status.name
+        )
+    }
+
+    override suspend fun updateItem(item: RestockItem) {
+        restockQueries.updateItemDetails(
+            name = item.name,
+            quantity_amount = item.quantity.amount.toPlainString(),
+            quantity_unit = item.quantity.unit.name,
+            expiration_date = item.expirationDate?.toEpochMilli(),
+            id = item.id
+        )
+    }
+
+    override suspend fun updateItemLocation(itemId: String, locationId: String) {
+        restockQueries.updateItemLocation(locationId, itemId)
+    }
+
+    override suspend fun confirmItem(itemId: String, mergeWithId: String?) {
+        db.transaction {
+            val itemRaw = restockQueries.selectItemById(itemId).executeAsOneOrNull() ?: return@transaction
+            val item = mapToRestockItemDomain(itemRaw)
+            
+            if (mergeWithId != null) {
+                // Merge into existing entry
+                val target = entryQueries.selectById(mergeWithId).executeAsOneOrNull() ?: return@transaction
+                val currentAmount = BigDecimal(target.quantity_amount)
+                val newAmount = currentAmount.add(item.quantity.amount)
+                
+                entryQueries.updateQuantity(
+                    quantity_amount = newAmount.toPlainString(),
+                    updated_at = Instant.now().toEpochMilli(),
+                    id = mergeWithId
+                )
+            } else {
+                // Create new entry
+                val entryId = UUID.randomUUID().toString()
+                entryQueries.insert(
+                    id = entryId,
+                    name = item.name,
+                    quantity_amount = item.quantity.amount.toPlainString(),
+                    quantity_unit = item.quantity.unit.name,
+                    expiration_date = item.expirationDate?.toEpochMilli()?.let { Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString() },
+                    shelf_life_sealed_seconds = null,
+                    shelf_life_opened_seconds = null,
+                    storage_location_id = item.locationId,
+                    category_id = null,
+                    opened_at = null,
+                    alert_at = null,
+                    created_at = Instant.now().toEpochMilli(),
+                    updated_at = Instant.now().toEpochMilli()
+                )
+                
+                if (item.catalogEan != null) {
+                    catalogQueries.insertMapping(entryId, item.catalogEan)
+                }
+            }
+
+            // Mark shopping list item as restocked if from list
+            if (item.shoppingListItemId != null) {
+                shoppingQueries.updateRestocked(item.shoppingListItemId)
+            }
+
+            // Mark restock item as confirmed
+            restockQueries.updateItemStatus(RestockItemStatus.CONFIRMED.name, itemId)
+        }
+    }
+
+    override suspend fun completeSession(sessionId: String) {
+        restockQueries.updateSessionStatus(RestockSessionStatus.COMPLETED.name, sessionId)
+    }
+
+    override suspend fun cancelSession(sessionId: String) {
+        restockQueries.updateSessionStatus(RestockSessionStatus.CANCELLED.name, sessionId)
+    }
+
+    private fun mapToRestockItemDomain(row: com.stashapp.shared.db.Restock_item): RestockItem {
+        return RestockItem(
+            id = row.id,
+            sessionId = row.session_id,
+            name = row.name,
+            quantity = Quantity(BigDecimal(row.quantity_amount), MeasurementUnit.valueOf(row.quantity_unit)),
+            shoppingListItemId = row.shopping_list_item_id,
+            catalogEan = row.catalog_ean,
+            locationId = row.location_id,
+            expirationDate = row.expiration_date?.let { Instant.ofEpochMilli(it) },
+            status = RestockItemStatus.valueOf(row.status)
+        )
     }
 
     suspend fun executeRawSql(sql: String) {

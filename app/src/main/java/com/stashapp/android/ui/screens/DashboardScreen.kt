@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import com.stashapp.android.ui.components.ExpiringItemsDialog
 import androidx.compose.runtime.*
@@ -64,7 +65,8 @@ fun DashboardScreen(
     onNavigateToDetails: (String) -> Unit,
     onNavigateToGroup: (GroupingMode, String) -> Unit = { _, _ -> },
     onNavigateToSettings: () -> Unit = {},
-    onNavigateToRecipes: () -> Unit = {}
+    onNavigateToRecipes: () -> Unit = {},
+    onNavigateToShoppingList: () -> Unit = {}
 ) {
     val entries by viewModel.entries.collectAsState()
     val activeLocationId by viewModel.activeLocationId.collectAsState()
@@ -139,6 +141,14 @@ fun DashboardScreen(
                         Icon(
                             Icons.Default.Restaurant,
                             contentDescription = stringResource(R.string.nav_recipes),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+
+                    IconButton(onClick = onNavigateToShoppingList) {
+                        Icon(
+                            Icons.Default.ShoppingCart,
+                            contentDescription = stringResource(R.string.nav_shopping_list),
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }

@@ -1,0 +1,31 @@
+CREATE TABLE shopping_list_item (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    quantity_amount TEXT,
+    quantity_unit TEXT,
+    is_purchased INTEGER NOT NULL DEFAULT 0,
+    is_restocked INTEGER NOT NULL DEFAULT 0,
+    catalog_ean TEXT
+);
+
+selectAll:
+SELECT * FROM shopping_list_item ORDER BY is_purchased ASC, name ASC;
+
+selectActive:
+SELECT * FROM shopping_list_item WHERE is_restocked = 0 ORDER BY is_purchased ASC, name ASC;
+
+selectPurchased:
+SELECT * FROM shopping_list_item WHERE is_purchased = 1 AND is_restocked = 0;
+
+insert:
+INSERT OR REPLACE INTO shopping_list_item(id, name, quantity_amount, quantity_unit, is_purchased, is_restocked, catalog_ean)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM shopping_list_item WHERE id = ?;
+
+updatePurchased:
+UPDATE shopping_list_item SET is_purchased = ? WHERE id = ?;
+
+updateRestocked:
+UPDATE shopping_list_item SET is_restocked = 1 WHERE id = ?;

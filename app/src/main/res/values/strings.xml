@@ -174,4 +174,29 @@
     <string name="dialog_paste_ingredients_title">Paste Ingredients</string>
     <string name="hint_paste_ingredients">Paste your ingredients here, one per line.</string>
     <string name="action_parse">Parse</string>
+    <!-- Shopping List & Restock -->
+    <string name="nav_shopping_list">Shopping List</string>
+    <string name="shopping_list_title">Shopping List</string>
+    <string name="shopping_list_empty_title">Your list is empty</string>
+    <string name="shopping_list_empty_subtitle">Add items you need to buy</string>
+    <string name="shopping_add_item">Add Item</string>
+    <string name="shopping_item_name_hint">Item name (e.g. Milk)</string>
+    <string name="shopping_scan_receipt">Scan Receipt</string>
+    <string name="restock_title">Restock</string>
+    <string name="restock_unassigned">Unassigned</string>
+    <string name="restock_assigned">Assigned</string>
+    <string name="restock_confirm_all">Confirm Restock</string>
+    <string name="restock_select_location">Select location for %1$d items</string>
+    <string name="restock_done_title">Restock Complete</string>
+    <string name="restock_done_message">Inventory updated and list cleared!</string>
+    <string name="restock_instructions">Select items and assign them to a location.</string>
+    <string name="restock_choice_title">Restock Options</string>
+    <string name="restock_choice_scan">Scan Receipt</string>
+    <string name="restock_choice_manual">Manual Entry</string>
+    <string name="action_add_manual_item">Add Item</string>
+    <string name="dialog_restock_merge_title">Merge Item?</string>
+    <string name="dialog_restock_merge_message">An item with this name already exists in \'%1$s\'. Do you want to merge it or add it as a unique item?</string>
+    <string name="action_merge">Merge</string>
+    <string name="action_add_unique">Add Unique</string>
+    <string name="hint_search_catalog">Search Catalog...</string>
 </resources>

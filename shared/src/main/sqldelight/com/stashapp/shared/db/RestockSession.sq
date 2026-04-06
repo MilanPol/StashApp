@@ -1,0 +1,53 @@
+CREATE TABLE restock_session (
+    id TEXT NOT NULL PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE restock_item (
+    id TEXT NOT NULL PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    quantity_amount TEXT NOT NULL,
+    quantity_unit TEXT NOT NULL,
+    shopping_list_item_id TEXT,
+    catalog_ean TEXT,
+    location_id TEXT,
+    expiration_date INTEGER,
+    status TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES restock_session(id) ON DELETE CASCADE
+);
+
+selectActiveSession:
+SELECT * FROM restock_session WHERE status = 'OPEN' LIMIT 1;
+
+selectItemsBySession:
+SELECT * FROM restock_item WHERE session_id = ?;
+
+selectItemById:
+SELECT * FROM restock_item WHERE id = ?;
+
+insertSession:
+INSERT OR REPLACE INTO restock_session(id, created_at, status)
+VALUES (?, ?, ?);
+
+insertItem:
+INSERT OR REPLACE INTO restock_item(id, session_id, name, quantity_amount, quantity_unit, shopping_list_item_id, catalog_ean, location_id, expiration_date, status)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateItemDetails:
+UPDATE restock_item 
+SET name = ?, quantity_amount = ?, quantity_unit = ?, expiration_date = ? 
+WHERE id = ?;
+
+updateItemLocation:
+UPDATE restock_item SET location_id = ?, status = 'ASSIGNED' WHERE id = ?;
+
+updateItemStatus:
+UPDATE restock_item SET status = ? WHERE id = ?;
+
+updateSessionStatus:
+UPDATE restock_session SET status = ? WHERE id = ?;
+
+deleteSession:
+DELETE FROM restock_session WHERE id = ?;
