@@ -23,12 +23,38 @@ object ReceiptLineParser {
             .map { parseLine(it) }
     }
 
-    private fun isProductLine(text: String): Boolean {
+    fun isProductLine(text: String): Boolean {
+        val trimmed = text.trim()
+        val lower = trimmed.lowercase()
+
         // Skip header, footer, totals, VAT lines
         val skip = listOf("totaal", "total", "btw", "subtotaal", "wisselgeld",
                           "pinbetaling", "bedankt", "kassabon", "bon nr", "datum", "tijd")
-        val lower = text.lowercase()
-        return skip.none { lower.contains(it) } && text.trim().length > 2
+        if (skip.any { lower.contains(it) }) return false
+        
+        // 1. Too short (single char, symbols)
+        if (trimmed.length < 3) return false
+        
+        // 2. Pure numbers / prices / dates
+        if (trimmed.matches(Regex("""^[\d.,€$£\-/: ]+$"""))) return false
+        
+        // 3. Must contain at least one letter sequence of 2+ chars
+        if (!trimmed.contains(Regex("""[a-zA-ZáàâäéèêëíìîïóòôöúùûüñçÄÖÜß]{2,}"""))) return false
+        
+        // 4. Reject lines that are mostly digits (>70% digits)
+        val digitRatio = trimmed.count { it.isDigit() }.toDouble() / trimmed.length
+        if (digitRatio > 0.7) return false
+        
+        // 5. Reject lines that look like standalone timestamps (HH:MM or HH:MM:SS)
+        if (trimmed.matches(Regex("""^\d{1,2}:\d{2}(:\d{2})?$"""))) return false
+        
+        // 6. Reject lines with 4+ consecutive digits UNLESS they contain a measurement unit
+        val hasMeasurementUnit = trimmed.contains(
+            Regex("""\d+(g|gr|gram|kg|kilo|l|ml|ltr|cl|oz|st|stk|stuk|pcs)\b""", RegexOption.IGNORE_CASE)
+        )
+        if (!hasMeasurementUnit && trimmed.contains(Regex("""\d{4,}"""))) return false
+        
+        return true
     }
 
     private fun parseLine(text: String): ReceiptLine {
@@ -40,7 +66,7 @@ object ReceiptLineParser {
         val unit = when (rawUnit) {
             "g", "gr", "gram" -> MeasurementUnit.GRAMS
             "kg", "kilo" -> MeasurementUnit.KILOGRAMS
-            "l", "ltr", "liter" -> MeasurementUnit.LITERS
+            "l", "ltr", "liter", "liters" -> MeasurementUnit.LITERS
             "ml" -> MeasurementUnit.MILLILITERS
             "st", "stk", "stuk", "pcs", "piece" -> MeasurementUnit.PIECES
             else -> MeasurementUnit.PIECES

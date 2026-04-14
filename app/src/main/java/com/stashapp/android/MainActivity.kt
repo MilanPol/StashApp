@@ -10,10 +10,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -82,7 +81,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             StashAppTheme {
                 val isCatalogImported by settingsManager.isCatalogImported.collectAsState(initial = true)
-                var ingestionProgress by remember { mutableStateOf(0f) }
 
                 // Observe Background Import Progress
                 val workManager = WorkManager.getInstance(applicationContext)
@@ -91,7 +89,6 @@ class MainActivity : ComponentActivity() {
                 
                 val currentImport = importWorkInfo.firstOrNull()
                 val isWorkerRunning = currentImport?.state == WorkInfo.State.RUNNING || currentImport?.state == WorkInfo.State.ENQUEUED
-                val workerProgress = currentImport?.progress?.getFloat("progress", 0f) ?: 0f
 
                 LaunchedEffect(isCatalogImported) {
                     if (!isCatalogImported) {
@@ -100,11 +97,6 @@ class MainActivity : ComponentActivity() {
                             .build()
                         workManager.enqueueUniqueWork("catalog_import", androidx.work.ExistingWorkPolicy.KEEP, request)
                     }
-                }
-
-                // Smoothly update progress
-                LaunchedEffect(workerProgress) {
-                    ingestionProgress = workerProgress
                 }
 
                 Surface(
@@ -120,10 +112,10 @@ class MainActivity : ComponentActivity() {
                                     modifier = Modifier.size(120.dp).clip(CircleShape)
                                 )
                                 Spacer(modifier = Modifier.height(24.dp))
-                                CircularProgressIndicator(progress = ingestionProgress)
+                                CircularProgressIndicator()
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "Loading Product Catalog... ${(ingestionProgress * 100).toInt()}%",
+                                    text = stringResource(R.string.catalog_importing_title),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
@@ -147,7 +139,8 @@ class MainActivity : ComponentActivity() {
                                         locationRepository = repository,
                                         categoryRepository = repository,
                                         catalogRepository = repository,
-                                        settingsManager = settingsManager
+                                        settingsManager = settingsManager,
+                                        checkStapleRestockUseCase = CheckStapleRestockUseCase(repository, repository),
                                     )
                                 )
                                 DashboardScreen(
@@ -179,11 +172,17 @@ class MainActivity : ComponentActivity() {
                             composable("group/{type}/{groupId}") { backStackEntry ->
                                 val type = backStackEntry.arguments?.getString("type") ?: ""
                                 val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+                                val groupViewModel: GroupListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                                    factory = GroupListViewModel.Factory(
+                                        entryRepository = repository,
+                                        locationRepository = repository,
+                                        categoryRepository = repository,
+                                        catalogRepository = repository,
+                                        checkStapleRestockUseCase = CheckStapleRestockUseCase(repository, repository),
+                                    )
+                                )
                                 GroupListScreen(
-                                    entryRepository = repository,
-                                    locationRepository = repository,
-                                    categoryRepository = repository,
-                                    catalogRepository = repository,
+                                    viewModel = groupViewModel,
                                     groupType = type,
                                     groupId = groupId,
                                     onNavigateBack = { navController.popBackStack() },
@@ -200,6 +199,7 @@ class MainActivity : ComponentActivity() {
                                         locationRepository = repository,
                                         categoryRepository = repository,
                                         catalogRepository = repository,
+                                        checkStapleRestockUseCase = CheckStapleRestockUseCase(repository, repository),
                                         itemId = itemId
                                     )
                                 )
@@ -264,6 +264,7 @@ class MainActivity : ComponentActivity() {
                                     factory = CookSessionViewModel.Factory(
                                         recipeRepository = recipeRepository,
                                         entryRepository = repository,
+                                        shoppingRepository = repository,
                                         recipeId = recipeId
                                     )
                                 )
@@ -275,40 +276,31 @@ class MainActivity : ComponentActivity() {
                             composable("shopping_list") {
                                 val shoppingViewModel: ShoppingListViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                     factory = ShoppingListViewModel.Factory(
-                                        repository = repository
+                                        shoppingRepository = repository,
+                                        restockRepository = repository
                                     )
                                 )
                                 ShoppingListScreen(
                                     viewModel = shoppingViewModel,
                                     onNavigateBack = { navController.popBackStack() },
                                     onRestockRequested = { isManual ->
-                                        if (isManual) {
-                                            lifecycleScope.launch {
-                                                val purchasedItems = repository.getPurchasedItems().first()
-                                                val restockItems = purchasedItems.map { shopItem ->
-                                                    RestockItem(
-                                                        sessionId = "", // Repo handles
-                                                        name = shopItem.name,
-                                                        quantity = shopItem.quantity ?: Quantity(java.math.BigDecimal.ONE, MeasurementUnit.PIECES),
-                                                        shoppingListItemId = shopItem.id,
-                                                        catalogEan = shopItem.catalogEan
-                                                    )
-                                                }
-                                                val sessionId = repository.createSession(restockItems)
-                                                withContext(Dispatchers.Main) {
-                                                    navController.navigate("restock_dashboard/$sessionId")
-                                                }
-                                            }
-                                        } else {
+                                        if (!isManual) {
                                             navController.navigate("receipt_scan")
                                         }
                                     }
                                 )
+                                
+                                // Handle navigation events from ViewModel
+                                LaunchedEffect(shoppingViewModel) {
+                                    shoppingViewModel.navigationEvent.collect { route ->
+                                        navController.navigate(route)
+                                    }
+                                }
                             }
                             composable("receipt_scan") {
                                 val scanViewModel: ReceiptScanViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                     factory = ReceiptScanViewModel.Factory(
-                                        matchReceiptUseCase = com.stashapp.shared.domain.usecase.MatchReceiptUseCase(repository, repository)
+                                        matchReceiptUseCase = com.stashapp.shared.domain.usecase.MatchReceiptUseCase(repository, repository, repository)
                                     )
                                 )
                                 ReceiptScanScreen(

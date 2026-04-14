@@ -34,6 +34,14 @@ class RestockDashboardViewModel(
         }
     }
 
+    fun updateItemExpirationDate(itemId: String, expirationDate: java.time.Instant?) {
+        viewModelScope.launch {
+            val currentItems = uiState.value.items
+            val currentItem = currentItems.find { it.id == itemId } ?: return@launch
+            restockRepository.updateItem(currentItem.copy(expirationDate = expirationDate))
+        }
+    }
+
     fun searchCatalog(query: String): Flow<List<CatalogProduct>> {
         return catalogRepository.searchCatalog(query)
     }

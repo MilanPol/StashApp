@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.RecipeTextScannerView
+import com.stashapp.android.ui.components.translated
 import com.stashapp.shared.domain.MatchConfidence
 import com.stashapp.shared.domain.ReceiptMatch
 import com.stashapp.shared.domain.ReceiptScanResult
@@ -35,7 +36,7 @@ fun ReceiptScanScreen(
             when (val state = uiState) {
                 is ReceiptScanUiState.Scanning -> {
                     RecipeTextScannerView(
-                        instructionText = "Scan your receipt lines",
+                        instructionText = stringResource(R.string.scan_instructions),
                         onTextCaptured = { lines -> viewModel.onTextCaptured(lines) },
                         onDismiss = onNavigateBack
                     )
@@ -48,7 +49,7 @@ fun ReceiptScanScreen(
                     ) {
                         CircularProgressIndicator()
                         Spacer(Modifier.height(16.dp))
-                        Text("Matching receipt items...")
+                        Text(stringResource(R.string.scan_matching_progress))
                     }
                 }
                 is ReceiptScanUiState.ReviewMatches -> {
@@ -65,8 +66,13 @@ fun ReceiptScanScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(Icons.Filled.Error, "Error", tint = MaterialTheme.colorScheme.error)
-                        Text("An error occurred during scan")
-                        Button(onClick = { viewModel.reset() }) { Text("Try Again") }
+                        Text(
+                            stringResource(R.string.scan_error), 
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Button(onClick = { viewModel.reset() }) { 
+                            Text(stringResource(R.string.scan_try_again)) 
+                        }
                     }
                 }
             }
@@ -81,8 +87,8 @@ private fun ReviewMatchesContent(
     onConfirm: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Scan Summary", style = MaterialTheme.typography.headlineMedium)
-        Text("${result.matches.size} items found", style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.scan_summary_title), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.scan_items_found, result.matches.size), style = MaterialTheme.typography.bodyMedium)
         
         Spacer(Modifier.height(16.dp))
 
@@ -113,14 +119,13 @@ private fun ReviewMatchesContent(
 
 @Composable
 private fun MatchCard(match: ReceiptMatch) {
-    val containerColor = when (match.confidence) {
-        MatchConfidence.EXACT -> Color(0xFFE8F5E9) // Very faint green
-        MatchConfidence.FUZZY -> Color(0xFFFFFDE7) // Very faint yellow
-        MatchConfidence.NONE -> MaterialTheme.colorScheme.surfaceVariant
-    }
-
     Card(
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (match.confidence != MatchConfidence.NONE) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            else 
+                MaterialTheme.colorScheme.surface
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -132,15 +137,16 @@ private fun MatchCard(match: ReceiptMatch) {
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = "${match.receiptLine.quantity.amount} ${match.receiptLine.quantity.unit.name.lowercase()}",
-                    style = MaterialTheme.typography.labelSmall
+                    text = "${match.receiptLine.quantity.amount} ${match.receiptLine.quantity.unit.translated()}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             if (match.matchedShoppingItem != null || match.matchedCatalogProduct != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val name = match.matchedCatalogProduct?.name ?: match.matchedShoppingItem?.name ?: ""
+                    val name = match.matchedCatalogProduct?.name ?: match.matchedShoppingItem?.name ?: match.receiptLine.name
                     Icon(
                         if (match.matchedCatalogProduct != null) Icons.Default.Inventory else Icons.Default.ShoppingCart,
                         null,
@@ -149,18 +155,30 @@ private fun MatchCard(match: ReceiptMatch) {
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Match: $name",
+                        text = stringResource(R.string.scan_match_label, name),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
             
+            if (match.matchedInventoryEntries.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                val totalInStock = match.matchedInventoryEntries.sumOf { it.quantity.amount }.toPlainString()
+                val unit = match.matchedInventoryEntries.first().quantity.unit.translated()
+                Text(
+                    text = "📦 Suggestion: $totalInStock $unit already in stock",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            
             if (match.confidence != MatchConfidence.NONE) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Confidence: ${match.confidence.name}",
-                    style = MaterialTheme.typography.labelSmall,
+                    text = stringResource(R.string.scan_confidence_label, match.confidence.name),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                     color = when(match.confidence) {
                         MatchConfidence.EXACT -> Color(0xFF2E7D32)
                         MatchConfidence.FUZZY -> Color(0xFFF9A825)

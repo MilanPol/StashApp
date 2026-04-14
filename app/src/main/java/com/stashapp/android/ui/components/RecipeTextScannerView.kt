@@ -24,11 +24,13 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.stashapp.android.R
+import com.stashapp.shared.data.parsing.ReceiptLineParser
 import java.util.concurrent.Executors
 
 @Composable
 fun RecipeTextScannerView(
     instructionText: String,
+    filterLines: Boolean = true,
     onTextCaptured: (List<String>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -42,6 +44,9 @@ fun RecipeTextScannerView(
 
     // Holds the latest recognized lines of text
     var detectedLines by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var candidateLines by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    var stableFrameCount by rememberSaveable { mutableIntStateOf(0) }
+    var totalFrameCount by rememberSaveable { mutableIntStateOf(0) }
     var isFrozen by rememberSaveable { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
@@ -50,22 +55,26 @@ fun RecipeTextScannerView(
         }
     }
 
+    // Use a ref so the analyzer closure always sees the latest value of isFrozen
+    // without causing a recomposition-driven camera rebind.
+    val isFrozenRef = remember { mutableStateOf(false) }
+    isFrozenRef.value = isFrozen
+
     Column(modifier = Modifier.fillMaxSize()) {
-        // Camera preview area (top 60%)
+        // Camera preview area (top 50%)
         if (!isFrozen) {
             Box(modifier = Modifier.weight(0.5f).fillMaxWidth()) {
                 AndroidView(
                     factory = { ctx ->
-                        PreviewView(ctx).apply {
+                        val previewView = PreviewView(ctx).apply {
                             layoutParams = ViewGroup.LayoutParams(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                 ViewGroup.LayoutParams.MATCH_PARENT
                             )
                         }
-                    },
-                    modifier = Modifier.fillMaxSize(),
-                    update = { previewView ->
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+
+                        // Bind camera once in factory — not in update
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                         cameraProviderFuture.addListener({
                             val cameraProvider = cameraProviderFuture.get()
 
@@ -78,9 +87,61 @@ fun RecipeTextScannerView(
                                 .build()
                                 .also {
                                     it.setAnalyzer(cameraExecutor) { imageProxy ->
-                                        if (!isFrozen) {
+                                        if (!isFrozenRef.value) {
                                             processTextImageProxy(textRecognizer, imageProxy) { lines ->
-                                                detectedLines = lines
+                                                val filteredLines = if (filterLines) {
+                                                    lines.filter { ReceiptLineParser.isProductLine(it) }
+                                                } else {
+                                                    lines.filter { it.length >= 2 }
+                                                }
+                                                
+                                                if (!filterLines) {
+                                                    // Description mode: no stabilization needed,
+                                                    // show live results and let user capture manually
+                                                    if (filteredLines.isNotEmpty()) {
+                                                        detectedLines = filteredLines
+                                                        stableFrameCount = 3 // keeps the UI from showing "Stabilizing..."
+                                                    }
+                                                } else if (filteredLines.isNotEmpty()) {
+                                                    totalFrameCount++
+                                                    if (candidateLines.isEmpty()) {
+                                                        // First frame with content — seed the candidate
+                                                        candidateLines = filteredLines
+                                                        stableFrameCount = 1
+                                                    } else {
+                                                        // Compare content overlap with previous candidate
+                                                        // Normalize aggressively: collapse whitespace, strip punctuation
+                                                        // so OCR noise like "175 g" vs "175g" doesn't break matching
+                                                        val normalize = { s: String ->
+                                                            s.lowercase().trim()
+                                                                .replace(Regex("""[\s]+"""), "")
+                                                                .replace(Regex("""[^a-z0-9]"""), "")
+                                                        }
+                                                        val candidateSet = candidateLines.map(normalize).toSet()
+                                                        val currentSet = filteredLines.map(normalize).toSet()
+                                                        val intersection = candidateSet.intersect(currentSet).size
+                                                        val union = candidateSet.union(currentSet).size
+                                                        val similarity = if (union > 0) intersection.toDouble() / union else 0.0
+
+                                                        if (similarity >= 0.35) {
+                                                            stableFrameCount++
+                                                            // Keep the version with more lines as the best candidate
+                                                            if (filteredLines.size > candidateLines.size) {
+                                                                candidateLines = filteredLines
+                                                            }
+                                                        } else {
+                                                            candidateLines = filteredLines
+                                                            stableFrameCount = 1
+                                                        }
+                                                    }
+
+                                                    if (stableFrameCount >= 3 || totalFrameCount >= 8) {
+                                                        detectedLines = candidateLines
+                                                    }
+                                                } else {
+                                                    stableFrameCount = 0
+                                                    candidateLines = emptyList()
+                                                }
                                             }
                                         } else {
                                             imageProxy.close()
@@ -101,12 +162,26 @@ fun RecipeTextScannerView(
                             } catch (e: Exception) {
                                 Log.e("RecipeScanner", "Use case binding failed", e)
                             }
-                        }, ContextCompat.getMainExecutor(context))
-                    }
+                        }, ContextCompat.getMainExecutor(ctx))
+
+                        previewView
+                    },
+                    modifier = Modifier.fillMaxSize()
                 )
 
                 // Live preview text overlay
-                if (detectedLines.isNotEmpty()) {
+                if (stableFrameCount < 3) {
+                    Surface(
+                        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                    ) {
+                        Text(
+                            text = "Stabilizing...",
+                            modifier = Modifier.padding(8.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                } else if (detectedLines.isNotEmpty()) {
                     Surface(
                         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)

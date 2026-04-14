@@ -85,11 +85,11 @@ class SqlDelightInventoryRepository(
     override fun getExpiringEntries(now: Instant): Flow<List<InventoryEntry>> {
         return entryQueries.selectExpiring(
             now = now.toEpochMilli(),
-            mapper = { id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at, alert_at ->
+            mapper = { id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at, alert_at, is_staple, staple_minimum ->
                 com.stashapp.shared.db.Inventory_entry(
                     id, name, quantity_amount, quantity_unit, expiration_date,
                     shelf_life_sealed_seconds, shelf_life_opened_seconds,
-                    storage_location_id, category_id, opened_at, created_at, updated_at, alert_at
+                    storage_location_id, category_id, opened_at, created_at, updated_at, alert_at, is_staple, staple_minimum
                 )
             }
         ).asFlow().mapToList(Dispatchers.IO).map { list ->
@@ -115,9 +115,25 @@ class SqlDelightInventoryRepository(
             category_id = entry.categoryId,
             opened_at = entry.openedAt?.toEpochMilli(),
             alert_at = entry.alertAt?.toEpochMilli(),
+            is_staple = if (entry.isStaple) 1L else 0L,
+            staple_minimum = entry.stapleMinimum?.toPlainString(),
             created_at = entry.createdAt.toEpochMilli(),
             updated_at = entry.updatedAt.toEpochMilli()
         )
+
+        // Handle Catalog Mapping within the transaction if called from db.transaction
+        entry.catalogEan?.let { ean ->
+            catalogQueries.insertMapping(entry.id, ean)
+        }
+        
+        // SYNC STAPLE RULES: Apply this item's staple settings to all similar items
+        val minString = entry.stapleMinimum?.toPlainString()
+        val isStapleLong = if (entry.isStaple) 1L else 0L
+        val now = Instant.now().toEpochMilli()
+        entryQueries.updateStapleRuleByName(isStapleLong, minString, now, entry.name)
+        entry.catalogEan?.let { ean ->
+            entryQueries.updateStapleRuleByEan(isStapleLong, minString, now, ean)
+        }
     }
 
     override suspend fun updateEntry(entry: InventoryEntry) {
@@ -180,6 +196,8 @@ class SqlDelightInventoryRepository(
             )
         } else null
         
+        val ean = catalogQueries.selectMappingByInventoryId(row.id).executeAsOneOrNull()?.ean
+        
         return InventoryEntry(
             id = row.id,
             name = row.name,
@@ -190,6 +208,9 @@ class SqlDelightInventoryRepository(
             categoryId = row.category_id,
             openedAt = row.opened_at?.let { Instant.ofEpochMilli(it) },
             alertAt = row.alert_at?.let { Instant.ofEpochMilli(it) },
+            isStaple = row.is_staple == 1L,
+            stapleMinimum = row.staple_minimum?.let { BigDecimal(it) },
+            catalogEan = ean,
             createdAt = Instant.ofEpochMilli(row.created_at),
             updatedAt = Instant.ofEpochMilli(row.updated_at)
         )
@@ -390,20 +411,29 @@ class SqlDelightInventoryRepository(
             } else {
                 // Create new entry
                 val entryId = UUID.randomUUID().toString()
+                val now = Instant.now().toEpochMilli()
+
+                // Inherit settings from an existing entry with the same EAN if available
+                val existingSameEan = item.catalogEan?.let { ean ->
+                    entryQueries.selectByCatalogEan(ean).executeAsList().firstOrNull()
+                }
+
                 entryQueries.insert(
                     id = entryId,
                     name = item.name,
                     quantity_amount = item.quantity.amount.toPlainString(),
                     quantity_unit = item.quantity.unit.name,
-                    expiration_date = item.expirationDate?.toEpochMilli()?.let { Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString() },
-                    shelf_life_sealed_seconds = null,
-                    shelf_life_opened_seconds = null,
+                    expiration_date = item.expirationDate?.atZone(java.time.ZoneId.systemDefault())?.toLocalDate()?.toString(),
+                    shelf_life_sealed_seconds = existingSameEan?.shelf_life_sealed_seconds,
+                    shelf_life_opened_seconds = existingSameEan?.shelf_life_opened_seconds,
                     storage_location_id = item.locationId,
-                    category_id = null,
+                    category_id = existingSameEan?.category_id,
                     opened_at = null,
-                    alert_at = null,
-                    created_at = Instant.now().toEpochMilli(),
-                    updated_at = Instant.now().toEpochMilli()
+                    alert_at = existingSameEan?.alert_at, // Consider recalculating based on expiration date
+                    is_staple = existingSameEan?.is_staple ?: 0L,
+                    staple_minimum = existingSameEan?.staple_minimum,
+                    created_at = now,
+                    updated_at = now
                 )
                 
                 if (item.catalogEan != null) {

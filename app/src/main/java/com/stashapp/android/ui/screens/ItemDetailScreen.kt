@@ -8,6 +8,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.stashapp.android.util.StateSavers
 import androidx.compose.runtime.getValue
@@ -135,6 +137,20 @@ fun ItemDetailScreen(
                     }
                 }
 
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                
+                DetailRow(
+                    label = stringResource(R.string.label_staple_stock),
+                    value = if (currentEntry.isStaple) stringResource(R.string.label_yes) else stringResource(R.string.label_no)
+                )
+                
+                if (currentEntry.isStaple) {
+                    DetailRow(
+                        label = stringResource(R.string.label_staple_minimum),
+                        value = "${currentEntry.stapleMinimum ?: "0"} ${currentEntry.quantity.unit.translated().lowercase()}"
+                    )
+                }
+
                 Spacer(modifier = Modifier.weight(1f))
                 
                 // Primary Actions Row
@@ -161,8 +177,11 @@ fun ItemDetailScreen(
 
     if (showEditDialog && entry != null) {
         AddItemScreen(
-            entryRepository = viewModel.entryRepo,
-            catalogRepository = viewModel.catalogRepo,
+            onSearchCatalog = { viewModel.searchCatalog(it) },
+            onGetProductByEan = { viewModel.getProductByEan(it) },
+            onUpsertCatalogProduct = { viewModel.upsertCatalogProduct(it) },
+            onLinkEntryToProduct = { entryId, ean -> viewModel.linkEntryToProduct(entryId, ean) },
+            onGetLinkedEan = { viewModel.getLinkedEan(it) },
             locations = locations,
             categories = categories,
             existingEntries = allEntries,

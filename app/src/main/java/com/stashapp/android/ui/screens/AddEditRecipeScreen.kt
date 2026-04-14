@@ -392,6 +392,7 @@ fun AddEditRecipeScreen(
                     } else {
                         stringResource(R.string.scan_description_hint)
                     },
+                    filterLines = scannerTarget == ScannerTarget.INGREDIENTS,
                     onTextCaptured = { lines ->
                         if (scannerTarget == ScannerTarget.INGREDIENTS) {
                             // Convert each selected line to a RecipeIngredient

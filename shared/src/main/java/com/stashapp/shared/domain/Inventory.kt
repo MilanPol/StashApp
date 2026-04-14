@@ -21,6 +21,16 @@ data class Quantity(
         return Quantity(if (newAmount < BigDecimal.ZERO) BigDecimal.ZERO else newAmount, unit)
     }
 
+    fun plus(other: Quantity): Quantity {
+        if (unit != other.unit) return this // Simplified for now, could add conversion later
+        return Quantity(amount + other.amount, unit)
+    }
+
+    fun topUpDeficit(target: BigDecimal): Quantity {
+        val deficit = target - amount
+        return Quantity(if (deficit < BigDecimal.ZERO) BigDecimal.ZERO else deficit, unit)
+    }
+
     val isEmpty: Boolean get() = amount <= BigDecimal.ZERO
 }
 
@@ -66,6 +76,9 @@ data class InventoryEntry(
     val categoryId: String? = null,
     val openedAt: Instant? = null,
     val alertAt: Instant? = null,
+    val isStaple: Boolean = false,
+    val stapleMinimum: BigDecimal? = null,
+    val catalogEan: String? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now()
 ) {
@@ -87,6 +100,12 @@ data class InventoryEntry(
     }
 
     val isOpen: Boolean get() = openedAt != null
+}
+
+fun InventoryEntry.needsRestock(): Boolean {
+    if (!isStaple) return false
+    val threshold = stapleMinimum ?: BigDecimal.ZERO
+    return quantity.amount <= threshold
 }
 
 data class CatalogProduct(

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Style
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
 import com.stashapp.android.ui.components.ExpiringItemsDialog
 import androidx.compose.runtime.*
@@ -53,6 +54,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 enum class GroupingMode {
     LOCATION, CATEGORY
@@ -88,9 +91,12 @@ fun DashboardScreen(
     
     var groupingMode by rememberSaveable { mutableStateOf(GroupingMode.LOCATION) }
     
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -218,15 +224,49 @@ fun DashboardScreen(
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             var searchQuery by remember { mutableStateOf("") }
+            var isScanningBarcode by remember { mutableStateOf(false) }
             
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text(stringResource(R.string.search_all_items)) },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = stringResource(R.string.search_hint)) },
+                trailingIcon = {
+                    IconButton(onClick = { isScanningBarcode = !isScanningBarcode }) {
+                        Icon(Icons.Filled.QrCodeScanner, contentDescription = "Scan Barcode")
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 singleLine = true
             )
+
+            AnimatedVisibility(visible = isScanningBarcode) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                    tonalElevation = 6.dp
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        com.stashapp.android.ui.components.BarcodeScannerView(
+                            onBarcodeDetected = { ean ->
+                                isScanningBarcode = false
+                                scope.launch {
+                                    val product = viewModel.getProductByEan(ean).firstOrNull()
+                                    if (product != null) {
+                                        searchQuery = product.name
+                                    } else {
+                                        snackbarHostState.showSnackbar("No product found for barcode: $ean")
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
 
             // Breadcrumbs / Location Context
             if (activeLocationId != null) {
@@ -449,8 +489,11 @@ fun DashboardScreen(
 
     if (showAddDialog) {
         AddItemScreen(
-            entryRepository = viewModel.entryRepo,
-            catalogRepository = viewModel.catalogRepo,
+            onSearchCatalog = { viewModel.searchCatalog(it) },
+            onGetProductByEan = { viewModel.getProductByEan(it) },
+            onUpsertCatalogProduct = { viewModel.upsertCatalogProduct(it) },
+            onLinkEntryToProduct = { entryId, ean -> viewModel.linkEntryToProduct(entryId, ean) },
+            onGetLinkedEan = { viewModel.getLinkedEan(it) },
             locations = allLocations,
             categories = categories,
             existingEntries = entries,
@@ -473,7 +516,8 @@ fun DashboardScreen(
     if (showExpiringDialog) {
         ExpiringItemsDialog(
             entries = expiringEntries,
-            repository = viewModel.entryRepo,
+            onUpdate = { viewModel.updateEntry(it) },
+            onDelete = { viewModel.removeEntry(it) },
             onDismiss = { showExpiringDialog = false },
             onNavigateToDetails = onNavigateToDetails
         )

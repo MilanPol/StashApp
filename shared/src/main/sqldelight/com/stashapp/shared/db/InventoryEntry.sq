@@ -11,7 +11,9 @@ CREATE TABLE inventory_entry (
     opened_at INTEGER,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    alert_at INTEGER -- Epoch milliseconds (Added last for migration compatibility)
+    alert_at INTEGER, -- Epoch milliseconds (Added last for migration compatibility)
+    is_staple INTEGER NOT NULL DEFAULT 0,
+    staple_minimum TEXT
 );
 
 selectAll:
@@ -22,8 +24,8 @@ SELECT * FROM inventory_entry WHERE id = ?;
 
 insert:
 INSERT OR REPLACE INTO inventory_entry(
-    id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at, alert_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    id, name, quantity_amount, quantity_unit, expiration_date, shelf_life_sealed_seconds, shelf_life_opened_seconds, storage_location_id, category_id, opened_at, created_at, updated_at, alert_at, is_staple, staple_minimum
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteById:
 DELETE FROM inventory_entry WHERE id = ?;
@@ -43,3 +45,10 @@ selectByCatalogEan:
 SELECT e.* FROM inventory_entry e
 JOIN inventory_product_mapping m ON e.id = m.inventory_id
 WHERE m.ean = ?;
+
+updateStapleRuleByName:
+UPDATE inventory_entry SET is_staple = ?, staple_minimum = ?, updated_at = ? WHERE name = ?;
+
+updateStapleRuleByEan:
+UPDATE inventory_entry SET is_staple = ?, staple_minimum = ?, updated_at = ? 
+WHERE id IN (SELECT inventory_id FROM inventory_product_mapping WHERE ean = ?);

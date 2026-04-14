@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.stashapp.android.data.SettingsManager
 import com.stashapp.shared.domain.*
+import com.stashapp.shared.domain.usecase.CheckStapleRestockUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -14,7 +15,8 @@ class DashboardViewModel(
     private val locationRepository: StorageLocationRepository,
     private val categoryRepository: CategoryRepository,
     private val catalogRepository: CatalogRepository,
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val checkStapleRestockUseCase: CheckStapleRestockUseCase
 ) : ViewModel() {
 
     val entries: StateFlow<List<InventoryEntry>> =
@@ -47,9 +49,25 @@ class DashboardViewModel(
             .stateIn(viewModelScope, SharingStarted.Lazily, 2)
 
     // Entry operations
-    fun addEntry(entry: InventoryEntry) = viewModelScope.launch { entryRepository.addEntry(entry) }
-    fun updateEntry(entry: InventoryEntry) = viewModelScope.launch { entryRepository.updateEntry(entry) }
-    fun removeEntry(id: String) = viewModelScope.launch { entryRepository.removeEntry(id) }
+    fun addEntry(entry: InventoryEntry) = viewModelScope.launch { 
+        entryRepository.addEntry(entry)
+        if (entry.isStaple) {
+            checkStapleRestockUseCase.execute(entry)
+        }
+    }
+    fun updateEntry(entry: InventoryEntry) = viewModelScope.launch { 
+        entryRepository.updateEntry(entry)
+        if (entry.isStaple) {
+            checkStapleRestockUseCase.execute(entry)
+        }
+    }
+    fun removeEntry(id: String) = viewModelScope.launch { 
+        val entry = entryRepository.getEntryById(id)
+        entryRepository.removeEntry(id) 
+        if (entry != null && entry.isStaple) {
+            checkStapleRestockUseCase.execute(entry)
+        }
+    }
     fun mergeEntries(sourceId: String, targetId: String) = viewModelScope.launch { 
         entryRepository.mergeEntries(sourceId, targetId) 
     }
@@ -69,20 +87,32 @@ class DashboardViewModel(
         settingsManager.setActiveLocationId(locationId)
     }
 
-    // Provide sub-repositories to child composables  
-    val catalogRepo: CatalogRepository get() = catalogRepository
-    val entryRepo: InventoryEntryRepository get() = entryRepository
+    // Catalog operations
+    fun searchCatalog(query: String): Flow<List<CatalogProduct>> = catalogRepository.searchCatalog(query)
+    
+    fun upsertCatalogProduct(product: CatalogProduct) = viewModelScope.launch {
+        catalogRepository.upsertCatalogProduct(product)
+    }
+
+    fun linkEntryToProduct(entryId: String, ean: String) = viewModelScope.launch {
+        catalogRepository.linkEntryToProduct(entryId, ean)
+    }
+
+    fun getProductByEan(ean: String): Flow<CatalogProduct?> = catalogRepository.getProductByEan(ean)
+
+    suspend fun getLinkedEan(entryId: String): String? = catalogRepository.getLinkedEan(entryId)
 
     class Factory(
         private val entryRepository: InventoryEntryRepository,
         private val locationRepository: StorageLocationRepository,
         private val categoryRepository: CategoryRepository,
         private val catalogRepository: CatalogRepository,
-        private val settingsManager: SettingsManager
+        private val settingsManager: SettingsManager,
+        private val checkStapleRestockUseCase: CheckStapleRestockUseCase
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return DashboardViewModel(entryRepository, locationRepository, categoryRepository, catalogRepository, settingsManager) as T
+            return DashboardViewModel(entryRepository, locationRepository, categoryRepository, catalogRepository, settingsManager, checkStapleRestockUseCase) as T
         }
     }
 }

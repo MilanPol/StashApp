@@ -74,9 +74,11 @@
     <string name="label_category_optional">Category (Optional)</string>
     <string name="label_none">None</string>
     <string name="label_set_expiration_date">Set Expiration Date</string>
+    <string name="action_set_date">Set Date</string>
     <string name="label_merge_with_existing">Merge with existing stock?</string>
     <string name="action_merge_into_duplicate">Merge with existing?</string>
     <string name="action_add_to_existing">Add to Existing</string>
+    <string name="action_add_short">Add</string>
     <string name="action_ok">OK</string>
     <string name="label_notifications">Notifications</string>
     <string name="label_alert_me">Alert me</string>
@@ -151,6 +153,7 @@
     <string name="cook_warning_missing">Warning: %1$d ingredients missing</string>
     <string name="cook_available_quantity">Have %1$s</string>
     <string name="cook_deduct_title">Confirm deductions</string>
+    <string name="cook_add_missing_to_list">Add missing to shopping list</string>
     <string name="cook_deduct_skip">Skip</string>
     <string name="cook_deduct_confirm">Deduct</string>
     <string name="cook_done_title">Done cooking!</string>
@@ -199,4 +202,32 @@
     <string name="action_merge">Merge</string>
     <string name="action_add_unique">Add Unique</string>
     <string name="hint_search_catalog">Search Catalog...</string>
+    <string name="label_stored_in">Stored in: %1$s</string>
+    <string name="restock_exit_confirmation_title">Exit Restock?</string>
+    <string name="restock_exit_confirmation_message">You have items that haven’t been confirmed yet. Are you sure you want to exit?</string>
+    <string name="restock_session_not_found">Session error</string>
+
+    <!-- Receipt Scanning -->
+    <string name="scan_summary_title">Scan Summary</string>
+    <string name="scan_items_found">%1$d items found</string>
+    <string name="scan_matching_progress">Matching receipt items...</string>
+    <string name="scan_error">An error occurred during scan</string>
+    <string name="scan_try_again">Try Again</string>
+    <string name="scan_match_label">Match: %1$s</string>
+    <string name="scan_confidence_label">Confidence: %1$s</string>
+    <string name="scan_line_no_match">No match found</string>
+    <string name="barcode_found_message">✅ EAN: %1$s — Found: \"%2$s\"</string>
+    <string name="barcode_not_found_message">⚠️ EAN: %1$s — Not in catalog</string>
+
+    <!-- Permissions -->
+    <string name="permission_camera_required">Camera permission is required to scan barcodes.</string>
+    <string name="action_grant_permission">Grant Permission</string>
+
+    <!-- Staple Stock -->
+    <string name="label_staple_stock">Staple Stock</string>
+    <string name="label_staple_minimum">Minimum Quantity</string>
+    <string name="staple_description">Automatically add to shopping list when low.</string>
+    <string name="label_yes">Yes</string>
+    <string name="label_no">No</string>
+    <string name="catalog_importing_title">Importing Product Catalog…</string>
 </resources>

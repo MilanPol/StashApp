@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.stashapp.shared.domain.*
+import com.stashapp.shared.domain.usecase.CheckStapleRestockUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -14,6 +15,7 @@ class ItemDetailViewModel(
     private val locationRepository: StorageLocationRepository,
     private val categoryRepository: CategoryRepository,
     private val catalogRepository: CatalogRepository,
+    private val checkStapleRestockUseCase: CheckStapleRestockUseCase,
     private val itemId: String
 ) : ViewModel() {
 
@@ -36,6 +38,9 @@ class ItemDetailViewModel(
 
     fun updateEntry(entry: InventoryEntry) = viewModelScope.launch {
         entryRepository.updateEntry(entry)
+        if (entry.isStaple) {
+            checkStapleRestockUseCase.execute(entry)
+        }
     }
 
     fun removeEntry(onComplete: () -> Unit) = viewModelScope.launch {
@@ -44,7 +49,14 @@ class ItemDetailViewModel(
     }
 
     fun consumeFull(onComplete: () -> Unit) = viewModelScope.launch {
-        entryRepository.removeEntry(itemId)
+        val current = entry.value ?: return@launch
+        if (current.isStaple) {
+            val updated = current.copy(quantity = Quantity(BigDecimal.ZERO, current.quantity.unit), updatedAt = Instant.now())
+            entryRepository.updateEntry(updated)
+            checkStapleRestockUseCase.execute(updated)
+        } else {
+            entryRepository.removeEntry(itemId)
+        }
         onComplete()
     }
 
@@ -52,27 +64,38 @@ class ItemDetailViewModel(
         val current = entry.value ?: return@launch
         val updated = current.consume(amount, Instant.now())
         if (updated.quantity.amount <= BigDecimal.ZERO) {
-            entryRepository.removeEntry(itemId)
+            if (updated.isStaple) {
+                entryRepository.updateEntry(updated)
+                checkStapleRestockUseCase.execute(updated)
+            } else {
+                entryRepository.removeEntry(itemId)
+            }
         } else {
             entryRepository.updateEntry(updated)
+            checkStapleRestockUseCase.execute(updated)
         }
         onComplete()
     }
 
-    // Provide sub-repositories to child composables (AddItemScreen)
-    val catalogRepo: CatalogRepository get() = catalogRepository
-    val entryRepo: InventoryEntryRepository get() = entryRepository
+
+    // Catalog operations
+    fun searchCatalog(query: String): Flow<List<CatalogProduct>> = catalogRepository.searchCatalog(query)
+    fun upsertCatalogProduct(product: CatalogProduct) = viewModelScope.launch { catalogRepository.upsertCatalogProduct(product) }
+    fun linkEntryToProduct(entryId: String, ean: String) = viewModelScope.launch { catalogRepository.linkEntryToProduct(entryId, ean) }
+    fun getProductByEan(ean: String): Flow<CatalogProduct?> = catalogRepository.getProductByEan(ean)
+    suspend fun getLinkedEan(entryId: String): String? = catalogRepository.getLinkedEan(entryId)
 
     class Factory(
         private val entryRepository: InventoryEntryRepository,
         private val locationRepository: StorageLocationRepository,
         private val categoryRepository: CategoryRepository,
         private val catalogRepository: CatalogRepository,
+        private val checkStapleRestockUseCase: CheckStapleRestockUseCase,
         private val itemId: String
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ItemDetailViewModel(entryRepository, locationRepository, categoryRepository, catalogRepository, itemId) as T
+            return ItemDetailViewModel(entryRepository, locationRepository, categoryRepository, catalogRepository, checkStapleRestockUseCase, itemId) as T
         }
     }
 }

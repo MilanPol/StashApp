@@ -15,29 +15,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
 import com.stashapp.android.ui.components.InventoryItemCard
-import com.stashapp.shared.domain.InventoryEntryRepository
-import com.stashapp.shared.domain.StorageLocationRepository
-import com.stashapp.shared.domain.CategoryRepository
-import com.stashapp.shared.domain.CatalogRepository
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupListScreen(
-    entryRepository: InventoryEntryRepository,
-    locationRepository: StorageLocationRepository,
-    categoryRepository: CategoryRepository,
-    catalogRepository: CatalogRepository,
+    viewModel: GroupListViewModel,
     groupType: String,
     groupId: String,
     onNavigateBack: () -> Unit,
     onNavigateToDetails: (String) -> Unit
 ) {
-    val entries by entryRepository.getAllEntries().collectAsState(initial = emptyList())
-    val locations by locationRepository.getAllStorageLocations().collectAsState(initial = emptyList())
-    val categories by categoryRepository.getCategories().collectAsState(initial = emptyList())
+    val entries by viewModel.entries.collectAsState()
+    val locations by viewModel.locations.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
-    val scope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -103,8 +94,8 @@ fun GroupListScreen(
                     items(groupEntries, key = { it.id }) { entry ->
                         InventoryItemCard(
                             entry = entry,
-                            onUpdate = { scope.launch { entryRepository.updateEntry(it) } },
-                            onDelete = { scope.launch { entryRepository.removeEntry(entry.id) } },
+                            onUpdate = { viewModel.updateEntry(it) },
+                            onDelete = { viewModel.removeEntry(entry.id) },
                             onDetailsClick = { onNavigateToDetails(entry.id) }
                         )
                     }
@@ -115,8 +106,11 @@ fun GroupListScreen(
 
     if (showAddDialog) {
         AddItemScreen(
-            entryRepository = entryRepository,
-            catalogRepository = catalogRepository,
+            onSearchCatalog = { viewModel.searchCatalog(it) },
+            onGetProductByEan = { viewModel.getProductByEan(it) },
+            onUpsertCatalogProduct = { viewModel.upsertCatalogProduct(it) },
+            onLinkEntryToProduct = { entryId, ean -> viewModel.linkEntryToProduct(entryId, ean) },
+            onGetLinkedEan = { viewModel.getLinkedEan(it) },
             locations = locations,
             categories = categories,
             existingEntries = entries,
@@ -124,14 +118,12 @@ fun GroupListScreen(
             preSelectedCategoryId = if (!isLocation) groupId else null,
             onDismiss = { showAddDialog = false },
             onMerge = { sourceId, targetId ->
-                scope.launch { entryRepository.mergeEntries(sourceId, targetId) }
+                viewModel.mergeEntries(sourceId, targetId)
                 showAddDialog = false
             },
             onSave = { newOrModifiedEntry, isMerge ->
-                scope.launch { 
-                    if (isMerge) entryRepository.updateEntry(newOrModifiedEntry)
-                    else entryRepository.addEntry(newOrModifiedEntry) 
-                }
+                if (isMerge) viewModel.updateEntry(newOrModifiedEntry)
+                else viewModel.addEntry(newOrModifiedEntry)
                 showAddDialog = false
             }
         )

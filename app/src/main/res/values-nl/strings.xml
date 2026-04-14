@@ -74,8 +74,10 @@
     <string name="label_category_optional">Categorie (optioneel)</string>
     <string name="label_none">Geen</string>
     <string name="label_set_expiration_date">Vervaldatum instellen</string>
+    <string name="action_set_date">Datum instellen</string>
     <string name="label_merge_with_existing">Samenvoegen met bestaande voorraad?</string>
     <string name="action_add_to_existing">Toevoegen aan bestaand</string>
+    <string name="action_add_short">Toevoegen</string>
     <string name="action_ok">OK</string>
     <string name="label_notifications">Meldingen</string>
     <string name="label_alert_me">Herinner mij</string>
@@ -151,7 +153,8 @@
     <string name="cook_available_quantity">Beschikbaar: %1$s</string>
     <string name="cook_deduct_title">Aftrek bevestigen</string>
     <string name="cook_deduct_skip">Overslaan</string>
-    <string name="cook_deduct_confirm">Aftrekken</string>
+    <string name="cook_deduct_confirm">Afschrijven</string>
+    <string name="cook_add_missing_to_list">Ontbrekende items toevoegen aan lijst</string>
     <string name="cook_done_title">Klaar met koken!</string>
     <string name="cook_done_message">Voorraad is bijgewerkt.</string>
     <!-- Recipe Source Feature -->
@@ -170,8 +173,8 @@
     <string name="scan_start">Recept scannen</string>
     <string name="recipe_source_url_open">Link openen</string>
     <!-- Shopping List & Restock -->
-    <string name="nav_shopping_list">Boodschappenlijst</string>
-    <string name="shopping_list_title">Boodschappenlijst</string>
+    <string name="nav_shopping_list">Boodschappen</string>
+    <string name="shopping_list_title">Boodschappen</string>
     <string name="shopping_list_empty_title">Je lijst is leeg</string>
     <string name="shopping_list_empty_subtitle">Voeg items toe die je moet kopen</string>
     <string name="shopping_add_item">Item toevoegen</string>
@@ -194,4 +197,32 @@
     <string name="action_merge">Samenvoegen</string>
     <string name="action_add_unique">Uniek toevoegen</string>
     <string name="hint_search_catalog">Productcatalogus doorzoeken…</string>
+    <string name="label_stored_in">Opgeslagen in: %1$s</string>
+    <string name="restock_exit_confirmation_title">Aanvullen afsluiten?</string>
+    <string name="restock_exit_confirmation_message">Je hebt items die nog niet zijn bevestigd. Weet je zeker dat je wilt afsluiten?</string>
+    <string name="restock_session_not_found">Sessiefout</string>
+
+    <!-- Receipt Scanning -->
+    <string name="scan_summary_title">Overzicht scan</string>
+    <string name="scan_items_found">%1$d items gevonden</string>
+    <string name="scan_matching_progress">Bon-items koppelen...</string>
+    <string name="scan_error">Fout opgetreden tijdens scannen</string>
+    <string name="scan_try_again">Opnieuw proberen</string>
+    <string name="scan_match_label">Match: %1$s</string>
+    <string name="scan_confidence_label">Zekerheid: %1$s</string>
+    <string name="scan_line_no_match">Geen match gevonden</string>
+    <string name="barcode_found_message">✅ EAN: %1$s — Gevonden: \"%2$s\"</string>
+    <string name="barcode_not_found_message">⚠️ EAN: %1$s — Niet in catalogus</string>
+
+    <!-- Permissions -->
+    <string name="permission_camera_required">Cameratoegang is vereist om barcodes te scannen.</string>
+    <string name="action_grant_permission">Toegang verlenen</string>
+
+    <!-- Staple Stock -->
+    <string name="label_staple_stock">Basisvoorraad</string>
+    <string name="label_staple_minimum">Minimale hoeveelheid</string>
+    <string name="staple_description">Automatisch toevoegen aan boodschappenlijst bij lage voorraad.</string>
+    <string name="label_yes">Ja</string>
+    <string name="label_no">Nee</string>
+    <string name="catalog_importing_title">Productcatalogus importeren…</string>
 </resources>

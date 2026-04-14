@@ -1,0 +1,3 @@
+-- Migration 6: Add staple stock fields to inventory_entry
+ALTER TABLE inventory_entry ADD COLUMN is_staple INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE inventory_entry ADD COLUMN staple_minimum TEXT;

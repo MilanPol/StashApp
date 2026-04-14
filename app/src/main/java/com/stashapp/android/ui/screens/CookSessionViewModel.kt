@@ -12,6 +12,7 @@ import java.time.Instant
 class CookSessionViewModel(
     private val recipeRepository: RecipeRepository,
     private val entryRepository: InventoryEntryRepository,
+    private val shoppingRepository: ShoppingListRepository,
     private val recipeId: String
 ) : ViewModel() {
 
@@ -82,6 +83,34 @@ class CookSessionViewModel(
         }
     }
 
+    fun addMissingToShoppingList() {
+        viewModelScope.launch {
+            val multiplier = _servingMultiplier.value
+            for (match in _matches.value) {
+                if (match.status == MatchStatus.MISSING) {
+                    val requiredQty = (match.recipeIngredient.quantity ?: continue) * multiplier
+                    shoppingRepository.addOrUpdateItem(
+                        ShoppingListItem(
+                            name = match.recipeIngredient.name,
+                            quantity = Quantity(BigDecimal.valueOf(requiredQty), match.recipeIngredient.unit)
+                        )
+                    )
+                } else if (match.status == MatchStatus.LOW) {
+                    val requiredQty = (match.recipeIngredient.quantity ?: continue) * multiplier
+                    val deficit = requiredQty - match.availableQuantity
+                    if (deficit > 0) {
+                        shoppingRepository.addOrUpdateItem(
+                            ShoppingListItem(
+                                name = match.recipeIngredient.name,
+                                quantity = Quantity(BigDecimal.valueOf(deficit), match.recipeIngredient.unit)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     fun confirmDeductions() {
         viewModelScope.launch {
             val multiplier = _servingMultiplier.value
@@ -120,11 +149,12 @@ class CookSessionViewModel(
     class Factory(
         private val recipeRepository: RecipeRepository,
         private val entryRepository: InventoryEntryRepository,
+        private val shoppingRepository: ShoppingListRepository,
         private val recipeId: String
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return CookSessionViewModel(recipeRepository, entryRepository, recipeId) as T
+            return CookSessionViewModel(recipeRepository, entryRepository, shoppingRepository, recipeId) as T
         }
     }
 }

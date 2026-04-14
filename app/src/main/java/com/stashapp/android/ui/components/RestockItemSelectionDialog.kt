@@ -29,6 +29,7 @@ import com.stashapp.android.R
 import com.stashapp.shared.domain.CatalogProduct
 import com.stashapp.shared.domain.MeasurementUnit
 import com.stashapp.shared.domain.Quantity
+import com.stashapp.android.ui.components.translated
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -38,8 +39,8 @@ import java.util.concurrent.Executors
 @Composable
 fun RestockItemSelectionDialog(
     onDismiss: () -> Unit,
-    onProductSelected: (CatalogProduct, Double) -> Unit,
-    onManualAdd: (String, Double) -> Unit,
+    onProductSelected: (CatalogProduct, Double, MeasurementUnit) -> Unit,
+    onManualAdd: (String, Double, MeasurementUnit) -> Unit,
     searchCatalog: (String) -> kotlinx.coroutines.flow.Flow<List<CatalogProduct>>,
     getProductByEan: suspend (String) -> CatalogProduct?
 ) {
@@ -47,6 +48,8 @@ fun RestockItemSelectionDialog(
     var searchResults by remember { mutableStateOf(emptyList<CatalogProduct>()) }
     var isScanning by remember { mutableStateOf(false) }
     var quantity by remember { mutableStateOf("1") }
+    var selectedUnit by remember { mutableStateOf(MeasurementUnit.PIECES) }
+    var unitMenuExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(searchQuery) {
@@ -91,7 +94,11 @@ fun RestockItemSelectionDialog(
                                 scope.launch {
                                     val product = getProductByEan(ean)
                                     if (product != null) {
-                                        onProductSelected(product, quantity.toDoubleOrNull() ?: 1.0)
+                                        onProductSelected(
+                                            product, 
+                                            quantity.toDoubleOrNull() ?: 1.0,
+                                            product.defaultQuantity?.unit ?: MeasurementUnit.PIECES
+                                        )
                                         isScanning = false
                                     } else {
                                         // Product not in catalog, but we have EAN
@@ -119,20 +126,54 @@ fun RestockItemSelectionDialog(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             OutlinedTextField(
                                 value = quantity,
                                 onValueChange = { quantity = it },
-                                modifier = Modifier.width(100.dp),
+                                modifier = Modifier.weight(0.3f),
                                 label = { Text(stringResource(R.string.label_amount)) }
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
+                            
+                            ExposedDropdownMenuBox(
+                                expanded = unitMenuExpanded,
+                                onExpandedChange = { unitMenuExpanded = !unitMenuExpanded },
+                                modifier = Modifier.weight(0.4f)
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedUnit.translated(),
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(stringResource(R.string.unit)) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = unitMenuExpanded) },
+                                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = unitMenuExpanded,
+                                    onDismissRequest = { unitMenuExpanded = false }
+                                ) {
+                                    MeasurementUnit.entries.forEach { unit ->
+                                        DropdownMenuItem(
+                                            text = { Text(unit.translated()) },
+                                            onClick = {
+                                                selectedUnit = unit
+                                                unitMenuExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
                             if (searchQuery.isNotBlank() && searchResults.none { it.name.equals(searchQuery, ignoreCase = true) }) {
                                 Button(
-                                    onClick = { onManualAdd(searchQuery, quantity.toDoubleOrNull() ?: 1.0) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    onClick = { onManualAdd(searchQuery, quantity.toDoubleOrNull() ?: 1.0, selectedUnit) },
+                                    modifier = Modifier.weight(0.3f)
                                 ) {
-                                    Text(stringResource(R.string.action_add_manually))
+                                    Text(stringResource(R.string.action_add_short), maxLines = 1)
                                 }
                             }
                         }
@@ -143,9 +184,19 @@ fun RestockItemSelectionDialog(
                             items(searchResults) { product ->
                                 ListItem(
                                     headlineContent = { Text(product.name) },
-                                    supportingContent = { Text("${product.brand ?: ""} ${product.ean}") },
+                                    supportingContent = { 
+                                        Text(
+                                            text = "${product.defaultQuantity?.amount ?: ""} ${product.defaultQuantity?.unit?.translated() ?: ""}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
                                     modifier = Modifier.clickable {
-                                        onProductSelected(product, quantity.toDoubleOrNull() ?: 1.0)
+                                        onProductSelected(
+                                            product, 
+                                            quantity.toDoubleOrNull() ?: 1.0,
+                                            product.defaultQuantity?.unit ?: selectedUnit
+                                        )
                                     }
                                 )
                                 HorizontalDivider()
@@ -157,4 +208,3 @@ fun RestockItemSelectionDialog(
         }
     }
 }
-

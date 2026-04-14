@@ -72,7 +72,11 @@ object StateSavers {
                 "expiration" to it.expirationDate?.date?.toString(),
                 "locationId" to it.storageLocationId,
                 "categoryId" to it.categoryId,
-                "openedAt" to it.openedAt?.toString()
+                "openedAt" to it.openedAt?.toString(),
+                "alertAt" to it.alertAt?.toString(),
+                "isStaple" to it.isStaple,
+                "stapleMinimum" to it.stapleMinimum?.toPlainString(),
+                "catalogEan" to it.catalogEan
             )
         },
         restore = {
@@ -83,7 +87,11 @@ object StateSavers {
                 expirationDate = (it["expiration"] as? String)?.let { s -> ExpirationDate(LocalDate.parse(s)) },
                 storageLocationId = it["locationId"] as? String,
                 categoryId = it["categoryId"] as? String,
-                openedAt = (it["openedAt"] as? String)?.let { s -> Instant.parse(s) }
+                openedAt = (it["openedAt"] as? String)?.let { s -> Instant.parse(s) },
+                alertAt = (it["alertAt"] as? String)?.let { s -> Instant.parse(s) },
+                isStaple = it["isStaple"] as? Boolean ?: false,
+                stapleMinimum = (it["stapleMinimum"] as? String)?.let { s -> BigDecimal(s) },
+                catalogEan = it["catalogEan"] as? String
             )
         }
     )

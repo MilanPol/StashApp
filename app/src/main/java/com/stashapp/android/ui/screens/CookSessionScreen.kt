@@ -3,8 +3,11 @@ package com.stashapp.android.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.RemoveCircle
@@ -22,6 +25,7 @@ import com.stashapp.android.R
 import com.stashapp.shared.domain.IngredientMatch
 import com.stashapp.shared.domain.MatchStatus
 import com.stashapp.android.ui.components.translated
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,13 +51,44 @@ fun CookSessionScreen(
         )
     }
 
+    var showDescriptionDialog by remember { mutableStateOf(false) }
+
+    if (showDescriptionDialog) {
+        AlertDialog(
+            onDismissRequest = { showDescriptionDialog = false },
+            title = { Text(recipe?.name ?: "") },
+            text = {
+                Text(
+                    text = recipe?.description ?: "",
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                )
+            },
+            confirmButton = {
+                Button(onClick = { showDescriptionDialog = false }) {
+                    Text(stringResource(R.string.action_ok))
+                }
+            }
+        )
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(recipe?.name ?: "") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nav_back))
+                    }
+                },
+                actions = {
+                    if (!recipe?.description.isNullOrBlank()) {
+                        IconButton(onClick = { showDescriptionDialog = true }) {
+                            Icon(Icons.Default.Assignment, contentDescription = "View Description")
+                        }
                     }
                 }
             )
@@ -73,6 +108,22 @@ fun CookSessionScreen(
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
+                    val deficitCount = matches.count { it.status == MatchStatus.MISSING || it.status == MatchStatus.LOW }
+                    if (deficitCount > 0) {
+                        OutlinedButton(
+                            onClick = { 
+                                viewModel.addMissingToShoppingList()
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Added to shopping list")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.cook_add_missing_to_list))
+                        }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     

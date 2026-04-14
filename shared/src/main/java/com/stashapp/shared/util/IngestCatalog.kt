@@ -12,29 +12,15 @@ import java.io.InputStreamReader
 class IngestCatalog(private val executeSql: suspend (String) -> Unit) {
 
     suspend fun ingestFromSqlStream(
-        inputStream: InputStream, 
-        totalBytes: Long = 0L,
-        onProgress: (suspend (Float) -> Unit)? = null
+        inputStream: InputStream
     ) {
         val reader = BufferedReader(InputStreamReader(inputStream), 65536) // Massive buffer
-        var bytesRead = 0L
-        var lastReportedPercentage = -1
         var inQuote = false
         val statementBuffer = StringBuilder()
         
         reader.use { r ->
             var line: String? = r.readLine()
             while (line != null) {
-                bytesRead += line.length + 1
-                
-                // PROGRESS: Only report when percentage actually increases
-                if (totalBytes > 0 && onProgress != null) {
-                    val currentPercentage = (bytesRead * 100 / totalBytes).toInt().coerceAtMost(100)
-                    if (currentPercentage > lastReportedPercentage) {
-                        onProgress(currentPercentage.toFloat() / 100f)
-                        lastReportedPercentage = currentPercentage
-                    }
-                }
 
                 // process all lines, even empty ones, to preserve data fidelity inside quotes
                 val chars = line.toCharArray()

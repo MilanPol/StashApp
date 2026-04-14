@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.*
@@ -32,8 +33,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import com.stashapp.android.ui.components.BarcodeScannerView
 import com.stashapp.shared.domain.CatalogProduct
-import com.stashapp.shared.domain.InventoryEntryRepository
-import com.stashapp.shared.domain.CatalogRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
@@ -54,8 +55,11 @@ enum class AddMode { UNDEFINED, MANUAL, SCAN }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddItemScreen(
-    entryRepository: InventoryEntryRepository,
-    catalogRepository: CatalogRepository,
+    onSearchCatalog: (String) -> Flow<List<CatalogProduct>>,
+    onGetProductByEan: (String) -> Flow<CatalogProduct?>,
+    onUpsertCatalogProduct: (CatalogProduct) -> Unit,
+    onLinkEntryToProduct: (String, String) -> Unit,
+    onGetLinkedEan: suspend (String) -> String?,
     locations: List<StorageLocation>,
     categories: List<Category>,
     existingEntries: List<InventoryEntry>,
@@ -70,7 +74,9 @@ fun AddItemScreen(
     var mode by rememberSaveable { mutableStateOf(if (initialEntry == null) AddMode.UNDEFINED else AddMode.MANUAL) }
     
     var name by rememberSaveable { mutableStateOf(initialEntry?.name ?: "") }
-    var scannedBarcode by rememberSaveable { mutableStateOf<String?>(null) }
+    var scannedEan by rememberSaveable { mutableStateOf<String?>(null) }
+    var scannedProductFound by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var scannedProductName by rememberSaveable { mutableStateOf<String?>(null) }
     var quantityText by rememberSaveable { mutableStateOf(initialEntry?.quantity?.amount?.toString() ?: "") }
     
     val scope = rememberCoroutineScope()
@@ -94,7 +100,7 @@ fun AddItemScreen(
     
     LaunchedEffect(name) {
         if (name.length >= 2) {
-            catalogRepository.searchCatalog(name).collect { results ->
+            onSearchCatalog(name).collect { results ->
                 catalogSearchResults = results.toMutableList()
             }
         } else {
@@ -148,6 +154,9 @@ fun AddItemScreen(
     var wantsNotification by rememberSaveable { mutableStateOf(initialEntry?.alertAt != null || initialEntry?.expirationDate != null || initialEntry == null) }
     var customAlertDateSet by rememberSaveable { mutableStateOf(initialEntry?.alertAt != null) }
 
+    var isStaple by rememberSaveable { mutableStateOf(initialEntry?.isStaple ?: false) }
+    var stapleMinimumText by rememberSaveable { mutableStateOf(initialEntry?.stapleMinimum?.toPlainString() ?: "0") }
+
     val filteredSuggestions = existingEntries.filter { 
         it.name.contains(name, ignoreCase = true) && name.isNotBlank() 
     }.distinctBy { it.name }
@@ -156,7 +165,7 @@ fun AddItemScreen(
     LaunchedEffect(existingEntries) {
         val mapping = mutableMapOf<String, String>()
         existingEntries.forEach { entry ->
-            catalogRepository.getLinkedEan(entry.id)?.let { ean ->
+            onGetLinkedEan(entry.id)?.let { ean ->
                 mapping[entry.id] = ean
             }
         }
@@ -174,9 +183,9 @@ fun AddItemScreen(
         
         // Smart identity: Both must have same EAN or both must have none
         val existingEan = entryEanMap[it.id]
-        val eanMatches = if (scannedBarcode != null && existingEan != null) {
-            scannedBarcode == existingEan
-        } else if (scannedBarcode == null && existingEan == null) {
+        val eanMatches = if (scannedEan != null && existingEan != null) {
+            scannedEan == existingEan
+        } else if (scannedEan == null && existingEan == null) {
             true 
         } else {
             false 
@@ -222,6 +231,8 @@ fun AddItemScreen(
                                     val mergedEntry = existingMatch.copy(
                                         quantity = Quantity(existingMatch.quantity.amount + amount, selectedUnit),
                                         alertAt = calculatedAlertAt,
+                                        isStaple = isStaple,
+                                        stapleMinimum = if (isStaple) stapleMinimumText.toBigDecimalOrNull() else null,
                                         updatedAt = Instant.now()
                                     )
                                     onSave(mergedEntry, true)
@@ -239,6 +250,8 @@ fun AddItemScreen(
                                     storageLocationId = selectedLocation?.id,
                                     categoryId = selectedCategory?.id,
                                     alertAt = calculatedAlertAt,
+                                    isStaple = isStaple,
+                                    stapleMinimum = if (isStaple) stapleMinimumText.toBigDecimalOrNull() else null,
                                     updatedAt = Instant.now()
                                 )
                                 finalEntryId = entryToSave.id
@@ -246,17 +259,15 @@ fun AddItemScreen(
                             }
 
                             // Learning Catalog: If we have a barcode, save the info to the catalog too
-                            scannedBarcode?.let { ean ->
-                                scope.launch {
-                                    catalogRepository.upsertCatalogProduct(
-                                        CatalogProduct(
-                                            ean = ean,
-                                            name = name,
-                                            defaultQuantity = Quantity(amount, selectedUnit)
-                                        )
+                            scannedEan?.let { ean ->
+                                onUpsertCatalogProduct(
+                                    CatalogProduct(
+                                        ean = ean,
+                                        name = name,
+                                        defaultQuantity = Quantity(amount, selectedUnit)
                                     )
-                                    catalogRepository.linkEntryToProduct(finalEntryId, ean)
-                                }
+                                )
+                                onLinkEntryToProduct(finalEntryId, ean)
                             }
                         }
                     }
@@ -383,15 +394,22 @@ fun AddItemScreen(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             BarcodeScannerView { barcode ->
-                                scannedBarcode = barcode
-                                scope.launch {
-                                    catalogRepository.getProductByEan(barcode).collect { product ->
+                                if (scannedEan != barcode) {
+                                    scannedEan = barcode
+                                    scannedProductFound = null
+                                    scope.launch {
+                                        // Use firstOrNull to avoid collecting indefinitely
+                                        val product = onGetProductByEan(barcode).firstOrNull()
                                         if (product != null) {
                                             name = product.name
+                                            scannedProductName = product.name
+                                            scannedProductFound = true
                                             product.defaultQuantity?.let {
                                                 quantityText = it.amount.toPlainString()
                                                 selectedUnit = it.unit
                                             }
+                                        } else {
+                                            scannedProductFound = false
                                         }
                                         mode = AddMode.MANUAL
                                     }
@@ -407,9 +425,10 @@ fun AddItemScreen(
                 }
             } else if (mode == AddMode.SCAN && !hasCameraPermission) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Camera permission is required to scan barcodes.")
+                    Text(stringResource(R.string.permission_camera_required))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text("Grant Permission")
+                        Text(stringResource(R.string.action_grant_permission))
                     }
                 }
             } else {
@@ -419,6 +438,27 @@ fun AddItemScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Barcode Confirmation Banner
+                    if (scannedEan != null && scannedProductFound != null) {
+                        val containerColor = if (scannedProductFound == true) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                        val contentColor = if (scannedProductFound == true) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = containerColor,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val eanStr = scannedEan ?: ""
+                            val foundText = if (scannedEan != null) stringResource(R.string.barcode_found_message, eanStr, scannedProductName ?: "") else ""
+                            val notFoundText = if (scannedEan != null) stringResource(R.string.barcode_not_found_message, eanStr) else ""
+                            Text(
+                                text = if (scannedProductFound == true) foundText else notFoundText,
+                                color = contentColor,
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
                     // Name Input with Catalog Autocomplete
                     Column(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
@@ -443,7 +483,7 @@ fun AddItemScreen(
                                             supportingContent = { product.brand?.let { Text(it) } },
                                             modifier = Modifier.clickable {
                                                 name = product.name
-                                                scannedBarcode = product.ean
+                                                scannedEan = product.ean
                                                 product.defaultQuantity?.let {
                                                     quantityText = it.amount.toPlainString()
                                                     selectedUnit = it.unit
@@ -501,7 +541,7 @@ fun AddItemScreen(
                             expanded = expandedUnit,
                             onDismissRequest = { expandedUnit = false }
                         ) {
-                            MeasurementUnit.values().forEach { unit ->
+                            MeasurementUnit.entries.forEach { unit ->
                                 DropdownMenuItem(
                                     text = { Text(unit.translated().lowercase()) },
                                     onClick = {
@@ -607,6 +647,33 @@ fun AddItemScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                }
+
+                // Staple Stock Section
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.label_staple_stock), style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.staple_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = isStaple,
+                        onCheckedChange = { isStaple = it }
+                    )
+                }
+                
+                if (isStaple) {
+                    OutlinedTextField(
+                        value = stapleMinimumText,
+                        onValueChange = { stapleMinimumText = it },
+                        label = { Text(stringResource(R.string.label_staple_minimum)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
                 }
 
                 // Notification Section

@@ -13,6 +13,7 @@ data class ReceiptMatch(
     val receiptLine: ReceiptLine,
     val matchedShoppingItem: ShoppingListItem? = null,
     val matchedCatalogProduct: CatalogProduct? = null,
+    val matchedInventoryEntries: List<InventoryEntry> = emptyList(),
     val confidence: MatchConfidence = MatchConfidence.NONE
 )
 

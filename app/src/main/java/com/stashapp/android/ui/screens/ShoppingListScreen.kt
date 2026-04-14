@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.stashapp.android.R
+import com.stashapp.android.ui.components.translated
 import com.stashapp.shared.domain.ShoppingListItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +36,13 @@ fun ShoppingListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.shopping_list_title)) },
+                title = { 
+                    Text(
+                        stringResource(R.string.shopping_list_title), 
+                        maxLines = 1, 
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.nav_back))
@@ -119,7 +126,7 @@ fun ShoppingListScreen(
             },
             onManualSelected = {
                 showRestockChoice = false
-                onRestockRequested(true)
+                viewModel.startManualRestock()
             }
         )
     }
@@ -186,8 +193,9 @@ fun ShoppingListItemCard(
                 )
                 if (item.quantity != null) {
                     Text(
-                        text = "${item.quantity?.amount} ${item.quantity?.unit?.name?.lowercase()}",
-                        style = MaterialTheme.typography.bodySmall
+                        text = "${item.quantity?.amount} ${item.quantity?.unit?.translated()}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

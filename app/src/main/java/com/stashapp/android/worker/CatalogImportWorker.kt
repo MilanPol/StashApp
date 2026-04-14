@@ -25,20 +25,10 @@ class CatalogImportWorker(appContext: Context, params: WorkerParameters) :
                 // TURBO: Enable high-speed ingestion mode
                 repository.setBulkMode(true)
                 
-                // Calculate file size at runtime instead of hardcoding
-                val totalBytes = try {
-                    applicationContext.assets.openFd("dutch_catalog.sql").use { it.length }
-                } catch (_: Exception) { 0L }
                 val inputStream = applicationContext.assets.open("dutch_catalog.sql")
                 
                 IngestCatalog { sql -> repository.executeRawSql(sql) }.ingestFromSqlStream(
-                    inputStream = inputStream,
-                    totalBytes = totalBytes,
-                    onProgress = { progress ->
-                        // Communicate percentage back to UI (0-100)
-                        val progressData = workDataOf("progress" to progress)
-                        setProgress(progressData)
-                    }
+                    inputStream = inputStream
                 )
 
                 settingsManager.setCatalogImported(true)
